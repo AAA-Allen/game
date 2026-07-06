@@ -9,9 +9,23 @@ import { sendSuccess } from "./utils/api-response";
 
 export const app = express();
 
+const allowedOrigins = env.clientOrigin
+  .split(",")
+  .map((origin) => origin.trim());
+
 app.use(
   cors({
-    origin: env.clientOrigin,
+    origin(origin, callback) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes("*")
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(null, true);
+    },
     credentials: true,
   }),
 );

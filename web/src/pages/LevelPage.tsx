@@ -1,5 +1,12 @@
 import Editor from "@monaco-editor/react";
-import { ArrowLeft, Play, RotateCcw, Send, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  Play,
+  RotateCcw,
+  Send,
+  Swords,
+  Trophy,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -120,62 +127,87 @@ export default function LevelPage() {
     activeTab === "html" ? html : activeTab === "css" ? css : javascript;
 
   return (
-    <div className="min-h-screen bg-[#08111d] px-6 py-8 text-stone-100 lg:px-10">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm transition hover:bg-white/10"
-            onClick={() => navigate("/map")}
-          >
-            <ArrowLeft size={16} />
-            返回地图
-          </button>
-          <div className="inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-4 py-2 text-xs text-amber-100">
-            <Trophy size={14} />
-            {level?.rewardXp ?? 0} XP
+    <div className="min-h-screen bg-[#0a1220] text-stone-100">
+      <div className="absolute inset-0 pixel-grid-bg opacity-10" />
+      <div className="relative mx-auto max-w-7xl px-4 py-5 lg:px-6">
+        <div className="pixel-status-bar mb-5 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="pixel-button-secondary flex items-center gap-2 px-4 py-2 text-[11px] font-display"
+              onClick={() => navigate("/map")}
+            >
+              <ArrowLeft size={14} />
+              返回
+            </button>
+            <div className="pixel-outline bg-[#13253c] px-3 py-2">
+              <p className="font-display text-[10px] text-[#ffcf57]">
+                {loading ? "LOADING..." : `LV.${level?.rewardXp ?? 0}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="pixel-chip flex items-center gap-2 px-3 py-2 text-[11px]">
+              <Swords size={14} className="text-amber-200" />
+              <span className="text-slate-300">战斗</span>
+              <span className="font-semibold text-amber-100">
+                {level?.difficulty?.toUpperCase() ?? "NORMAL"}
+              </span>
+            </div>
+            <div className="pixel-chip flex items-center gap-2 px-3 py-2 text-[11px]">
+              <Trophy size={14} className="text-amber-200" />
+              <span className="text-slate-300">奖励</span>
+              <span className="font-semibold text-amber-100">
+                {level?.rewardXp ?? 0} XP
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
-          <section className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6">
-            <p className="text-xs tracking-[0.24em] text-stone-400 uppercase">任务剧情</p>
-            <h1 className="mt-3 font-display text-3xl text-stone-50">
+        <div className="grid gap-5 lg:grid-cols-[0.38fr_0.62fr]">
+          <section className="pixel-panel p-5 md:p-6">
+            <p className="font-display text-[11px] text-cyan-200">
+              任务剧情
+            </p>
+            <h1 className="mt-4 font-display text-[22px] leading-[1.9] text-stone-50 pixel-text-shadow">
               {loading ? "正在载入关卡..." : level?.title ?? "关卡不存在"}
             </h1>
-            <p className="mt-4 text-sm leading-7 text-stone-300">
+            <p className="mt-4 text-sm leading-7 text-slate-300">
               {level?.description ??
                 "进入战斗后，你需要根据右侧编辑器中的代码完成指定目标。"}
             </p>
 
-            <div className="mt-6 rounded-3xl border border-cyan-300/15 bg-cyan-300/10 p-4">
-              <p className="text-sm font-medium text-cyan-100">通关提示</p>
-              <ul className="mt-3 space-y-2 text-sm text-stone-300">
+            <div className="mt-6 pixel-map-tile p-4">
+              <p className="font-display text-[11px] text-cyan-100">通关提示</p>
+              <ul className="mt-4 space-y-2 text-sm text-slate-300">
                 {(level?.requiredKeywords ?? []).map((keyword) => (
-                  <li key={keyword}>- 包含关键片段：{keyword}</li>
+                  <li key={keyword} className="flex items-start gap-2">
+                    <span className="text-amber-200">&gt;</span>
+                    <span>包含关键片段：{keyword}</span>
+                  </li>
                 ))}
               </ul>
             </div>
 
             {feedback ? (
-              <div className="mt-5 rounded-3xl border border-rose-400/25 bg-rose-500/10 p-4 text-sm text-rose-200">
+              <div className="mt-5 pixel-outline bg-[#3a1a25] px-4 py-3 text-sm text-rose-200">
                 {feedback}
               </div>
             ) : null}
           </section>
 
-          <section className="grid gap-6">
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-4">
+          <section className="grid gap-5">
+            <div className="pixel-panel p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="inline-flex rounded-full border border-white/10 bg-black/20 p-1">
+                <div className="inline-flex gap-1 rounded-md bg-[#09131f] p-1 pixel-outline">
                   {tabs.map((tab) => (
                     <button
                       key={tab.key}
                       type="button"
-                      className={`rounded-full px-4 py-2 text-sm transition ${
+                      className={`px-4 py-2 text-[11px] font-display ${
                         activeTab === tab.key
-                          ? "bg-stone-100 text-slate-950"
-                          : "text-stone-300"
+                          ? "pixel-button text-white"
+                          : "pixel-button-secondary text-slate-200"
                       }`}
                       onClick={() => setActiveTab(tab.key)}
                     >
@@ -184,36 +216,36 @@ export default function LevelPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm transition hover:bg-white/10"
+                    className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
                     onClick={resetCode}
                   >
-                    <RotateCcw size={16} />
+                    <RotateCcw size={14} />
                     重置
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100 transition hover:bg-cyan-300/20"
+                    className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
                     onClick={() => setFeedback("预览已实时更新，可以直接查看右侧运行结果。")}
                   >
-                    <Play size={16} />
+                    <Play size={14} />
                     运行
                   </button>
                   <button
                     type="button"
                     disabled={submitting}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-stone-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-cyan-100 disabled:opacity-70"
+                    className="pixel-button flex items-center gap-2 px-4 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-70"
                     onClick={handleSubmit}
                   >
-                    <Send size={16} />
+                    <Send size={14} />
                     {submitting ? "提交中..." : "提交挑战"}
                   </button>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[1.4rem] border border-white/10">
+              <div className="overflow-hidden pixel-outline">
                 <Editor
                   height="420px"
                   language={activeTab === "javascript" ? "javascript" : activeTab}
@@ -235,14 +267,18 @@ export default function LevelPage() {
               </div>
             </div>
 
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-4">
-              <p className="mb-3 text-xs tracking-[0.24em] text-stone-400 uppercase">实时预览</p>
-              <iframe
-                title="WebQuest Preview"
-                sandbox="allow-scripts"
-                srcDoc={previewContent}
-                className="h-[360px] w-full rounded-[1.2rem] border border-white/10 bg-white"
-              />
+            <div className="pixel-panel p-4">
+              <p className="mb-3 font-display text-[11px] text-slate-400">
+                实时预览
+              </p>
+              <div className="pixel-outline overflow-hidden bg-white">
+                <iframe
+                  title="WebQuest Preview"
+                  sandbox="allow-scripts"
+                  srcDoc={previewContent}
+                  className="h-[360px] w-full"
+                />
+              </div>
             </div>
           </section>
         </div>

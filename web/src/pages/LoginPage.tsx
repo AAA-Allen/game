@@ -1,7 +1,9 @@
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  Coins,
   Compass,
+  Heart,
   ScrollText,
   ShieldCheck,
   Sparkles,
@@ -28,6 +30,12 @@ const featureCards = [
     title: "成长系统",
     description: "经验值、等级与解锁机制让学习过程更像游戏冒险。",
   },
+];
+
+const quickStats = [
+  { icon: Heart, label: "体力", value: "120/120" },
+  { icon: Coins, label: "金币", value: "2450" },
+  { icon: Sparkles, label: "水晶", value: "180" },
 ];
 
 export default function LoginPage() {
@@ -69,83 +77,126 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(65,197,176,0.18),_transparent_30%),linear-gradient(135deg,_#07111f,_#0e1f2f_45%,_#13253a_100%)] text-stone-100">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-      <div className="absolute left-1/2 top-24 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden text-stone-100">
+      <div className="absolute inset-0 pixel-stars opacity-70" />
+      <div className="absolute inset-0 pixel-grid-bg opacity-15" />
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-[linear-gradient(180deg,transparent_0%,rgba(13,24,18,0.38)_30%,rgba(8,18,12,0.88)_100%)]" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-7xl gap-12 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
-        <section className="flex flex-col justify-between py-6">
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="space-y-6"
-          >
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs tracking-[0.28em] text-cyan-100 uppercase">
-              <Sparkles size={14} />
-              WebQuest Frontier
+      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col gap-7 px-5 py-6 lg:px-8">
+        <div className="pixel-status-bar flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="pixel-outline bg-[#13253c] px-3 py-2">
+              <p className="font-display text-[10px] text-[#ffcf57]">WEBQUEST</p>
             </div>
-
-            <div className="space-y-5">
-              <h1 className="max-w-3xl font-display text-5xl leading-tight text-stone-50 md:text-6xl">
-                像打游戏一样，
-                <span className="block bg-[linear-gradient(120deg,#d7ff91,#56d9ff,#ffd47b)] bg-clip-text text-transparent">
-                  征服 Web 开发世界
-                </span>
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-stone-300 md:text-lg">
-                从新手村到 JS 风暴，用闯关、战斗、成长和奖励，把前端学习变成一段真正能沉浸进去的冒险旅程。
+            <div>
+              <p className="font-display text-[10px] text-stone-50 pixel-text-shadow">
+                像素冒险入口
               </p>
+              <p className="mt-1 text-xs text-slate-300">Web 开发闯关之旅</p>
             </div>
-          </motion.div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {featureCards.map(({ icon: Icon, title: cardTitle, description }, index) => (
-              <motion.article
-                key={cardTitle}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12 * index, duration: 0.6 }}
-                className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)] backdrop-blur"
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {quickStats.map(({ icon: Icon, label, value }) => (
+              <div
+                key={label}
+                className="pixel-chip flex items-center gap-2 px-3 py-2 text-[11px] text-slate-100"
               >
-                <div className="mb-4 inline-flex rounded-2xl bg-cyan-300/15 p-3 text-cyan-100">
-                  <Icon size={18} />
-                </div>
-                <h2 className="mb-2 text-sm font-semibold tracking-[0.18em] text-stone-100 uppercase">
-                  {cardTitle}
-                </h2>
-                <p className="text-sm leading-6 text-stone-300">{description}</p>
-              </motion.article>
+                <Icon size={14} className="text-amber-200" />
+                <span className="text-slate-300">{label}</span>
+                <span className="font-semibold text-stone-100">{value}</span>
+              </div>
             ))}
+          </div>
+        </div>
+
+        <div className="grid flex-1 gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className="flex flex-col justify-between gap-8 py-2">
+            <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="pixel-panel p-6 md:p-8"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-2 pixel-chip text-[11px] text-cyan-100">
+              <Sparkles size={14} />
+              像素勇者大厅
+            </div>
+
+            <h1 className="mt-6 max-w-4xl font-display text-[28px] leading-[2.1] text-[#ffe58b] pixel-text-shadow md:text-[38px]">
+              用像素冒险的方式
+              <br />
+              挑战 Web 开发大陆
+            </h1>
+            <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+              从新手村出发，踏入 CSS 森林和 JS 风暴，在一场场剧情任务与代码战斗中升级成长。每一关都像 RPG 副本，每一次提交都决定你能否继续前进。
+            </p>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {featureCards.map(({ icon: Icon, title: cardTitle, description }, index) => (
+                <motion.article
+                  key={cardTitle}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08 * index, duration: 0.45 }}
+                  className="pixel-map-tile p-4"
+                >
+                  <div className="mb-3 inline-flex rounded-md border-2 border-slate-600 bg-[#16253a] p-2 text-cyan-200 shadow-[0_4px_0_0_#0f1724]">
+                    <Icon size={18} />
+                  </div>
+                  <h2 className="font-display text-[11px] leading-6 text-stone-100">
+                    {cardTitle}
+                  </h2>
+                  <p className="mt-3 text-xs leading-6 text-slate-300">{description}</p>
+                </motion.article>
+              ))}
+            </div>
+            </motion.div>
+
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+            <div className="pixel-map-tile p-4">
+              <p className="font-display text-[11px] text-lime-200">今日任务</p>
+              <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                <li>- 登录平台并创建你的冒险者存档</li>
+                <li>- 解锁新手村第一批 HTML 关卡</li>
+                <li>- 准备进入地图页面选择副本</li>
+              </ul>
+            </div>
+            <div className="pixel-map-tile p-4">
+              <p className="font-display text-[11px] text-fuchsia-200">当前版本</p>
+              <div className="mt-4 space-y-2 text-sm text-slate-300">
+                <p>认证已接入 MySQL</p>
+                <p>地图、关卡、结算页已上线</p>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="flex items-center justify-center">
           <motion.div
-            initial={{ opacity: 0, x: 22 }}
+            initial={{ opacity: 0, x: 18 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="w-full max-w-xl rounded-[2rem] border border-emerald-200/10 bg-[linear-gradient(180deg,rgba(16,26,41,0.88),rgba(9,16,28,0.92))] p-8 shadow-[0_32px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+            transition={{ duration: 0.5 }}
+            className="pixel-panel w-full max-w-xl p-6 md:p-8"
           >
             <div className="mb-8 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs tracking-[0.24em] text-emerald-200 uppercase">
-                  Adventurer Access
-                </p>
-                <h2 className="mt-3 font-display text-3xl text-stone-50">{title}</h2>
+                <p className="font-display text-[11px] text-cyan-200">ACCESS PANEL</p>
+                <h2 className="mt-4 font-display text-[24px] leading-[1.9] text-stone-50">
+                  {title}
+                </h2>
               </div>
-              <div className="rounded-2xl border border-emerald-200/20 bg-emerald-300/10 p-3 text-emerald-100">
+              <div className="pixel-outline flex h-16 w-16 items-center justify-center bg-[#163149] text-[#8ff4de]">
                 <Compass size={22} />
               </div>
             </div>
 
-            <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+            <div className="mb-6 inline-flex gap-2 rounded-md bg-[#09131f] p-2 pixel-outline">
               <button
                 type="button"
-                className={`rounded-full px-4 py-2 text-sm transition ${
+                className={`px-4 py-2 text-[11px] font-display ${
                   mode === "login"
-                    ? "bg-stone-100 text-slate-950 shadow"
-                    : "text-stone-300"
+                    ? "pixel-button text-white"
+                    : "pixel-button-secondary text-slate-200"
                 }`}
                 onClick={() => setMode("login")}
               >
@@ -153,10 +204,10 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                className={`rounded-full px-4 py-2 text-sm transition ${
+                className={`px-4 py-2 text-[11px] font-display ${
                   mode === "register"
-                    ? "bg-stone-100 text-slate-950 shadow"
-                    : "text-stone-300"
+                    ? "pixel-button text-white"
+                    : "pixel-button-secondary text-slate-200"
                 }`}
                 onClick={() => setMode("register")}
               >
@@ -166,30 +217,34 @@ export default function LoginPage() {
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <label className="block space-y-2">
-                <span className="text-sm text-stone-300">用户名</span>
+                <span className="text-xs tracking-[0.14em] text-slate-300 uppercase">
+                  用户名
+                </span>
                 <input
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-cyan-300/60 focus:bg-cyan-300/5"
-                  placeholder="输入你的冒险者名称"
+                  className="pixel-input w-full px-4 py-3 text-sm text-stone-100 placeholder:text-slate-500"
+                  placeholder="输入冒险者名称"
                   required
                 />
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm text-stone-300">密码</span>
+                <span className="text-xs tracking-[0.14em] text-slate-300 uppercase">
+                  密码
+                </span>
                 <input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-cyan-300/60 focus:bg-cyan-300/5"
+                  className="pixel-input w-full px-4 py-3 text-sm text-stone-100 placeholder:text-slate-500"
                   placeholder="至少 6 位字符"
                   required
                 />
               </label>
 
               {error ? (
-                <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                <div className="pixel-outline bg-[#3a1a25] px-4 py-3 text-sm text-rose-200">
                   {error}
                 </div>
               ) : null}
@@ -197,29 +252,27 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(120deg,#d8f796,#5ee4ff,#ffcf6c)] px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.01] hover:shadow-[0_20px_60px_rgba(94,228,255,0.25)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="pixel-button flex w-full items-center justify-center gap-3 px-5 py-4 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "正在进入世界..." : mode === "login" ? "进入冒险" : "创建角色并进入"}
-                <ArrowRight
-                  size={16}
-                  className="transition group-hover:translate-x-0.5"
-                />
+                {loading ? "正在进入世界" : mode === "login" ? "进入冒险" : "创建角色"}
+                <ArrowRight size={16} />
               </button>
             </form>
 
-            <div className="mt-8 grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-stone-300">
-              <div className="flex items-center justify-between">
-                <span>首版体验重点</span>
-                <span className="text-cyan-200">地图 / 关卡 / 代码战斗</span>
+            <div className="mt-6 grid gap-3">
+              <div className="pixel-map-tile flex items-center justify-between px-4 py-3 text-sm text-slate-300">
+                <span>推荐起点</span>
+                <span className="text-emerald-200">新手村 / HTML 基础</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span>当前后端状态</span>
-                <span className="text-emerald-200">认证已接入 MySQL</span>
+              <div className="pixel-map-tile flex items-center justify-between px-4 py-3 text-sm text-slate-300">
+                <span>首版体验重点</span>
+                <span className="text-amber-200">地图 / 关卡 / 代码战斗</span>
               </div>
             </div>
           </motion.div>
         </section>
       </div>
+    </div>
     </div>
   );
 }

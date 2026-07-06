@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Sparkles, Star, Trophy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Coins, Sparkles, Star, Trophy } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -20,15 +20,17 @@ export default function ResultPage() {
 
   if (!result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08111d] px-6 text-stone-100">
-        <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center">
-          <h1 className="font-display text-3xl text-stone-50">暂时没有结算数据</h1>
-          <p className="mt-4 text-sm text-stone-300">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a1220] px-6 text-stone-100">
+        <div className="pixel-panel w-full max-w-xl p-8 text-center">
+          <h1 className="font-display text-[22px] text-stone-50 pixel-text-shadow">
+            暂时没有结算数据
+          </h1>
+          <p className="mt-4 text-sm text-slate-300">
             请先从关卡页面提交一次挑战，再进入结算页查看奖励。
           </p>
           <button
             type="button"
-            className="mt-6 rounded-2xl bg-stone-100 px-5 py-3 text-sm font-medium text-slate-950"
+            className="pixel-button mt-6 px-6 py-3 text-[11px] font-display"
             onClick={() => navigate("/map")}
           >
             返回地图
@@ -39,64 +41,76 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_28%),linear-gradient(180deg,_#0b1020,_#0a1523_45%,_#08111d_100%)] px-6 py-8 text-stone-100 lg:px-10">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <div className="inline-flex items-center gap-2 self-center rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs tracking-[0.2em] text-amber-100 uppercase">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.12),transparent_32%),linear-gradient(180deg,#0a1220,#08101a_45%,#0a1220_100%)] text-stone-100">
+      <div className="absolute inset-0 pixel-grid-bg opacity-8" />
+      <div className="absolute inset-0 pixel-stars opacity-50" />
+
+      <div className="relative mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-6 px-5 py-8">
+        <div className="pixel-status-bar inline-flex items-center gap-2 px-4 py-2 text-[10px] font-display text-[#ffcf57]">
           <Sparkles size={14} />
-          Battle Result
+          战斗结算
         </div>
 
-        <div className="rounded-[2.2rem] border border-white/10 bg-white/5 p-8 text-center shadow-[0_30px_120px_rgba(0,0,0,0.35)]">
-          <p className="text-sm text-stone-400">当前关卡</p>
-          <h1 className="mt-2 font-display text-5xl text-stone-50">
+        <div className="pixel-panel w-full max-w-2xl p-8 text-center md:p-10">
+          <p className="font-display text-[11px] text-slate-400">当前关卡</p>
+          <h1 className="mt-3 font-display text-[28px] leading-[1.9] text-stone-50 pixel-text-shadow">
             {levelTitle ?? "挑战结算"}
           </h1>
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-amber-200">
+          <div className="mt-6 flex items-center justify-center gap-2">
             {Array.from({ length: 3 }).map((_, index) => (
               <Star
                 key={index}
-                size={28}
-                className={index < stars ? "fill-current" : "opacity-25"}
+                size={32}
+                className={
+                  index < stars
+                    ? "fill-[#ffcf57] text-[#ffcf57] drop-shadow-[0_0_6px_rgba(255,207,87,0.6)]"
+                    : "text-slate-600 opacity-30"
+                }
               />
             ))}
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-              <p className="text-xs text-stone-400">得分</p>
-              <p className="mt-2 text-3xl font-semibold text-stone-50">
+            <div className="pixel-map-tile p-5">
+              <p className="font-display text-[10px] text-slate-400">得分</p>
+              <p className="mt-3 font-display text-[28px] text-stone-50 pixel-text-shadow">
                 {result.submission.score}
               </p>
             </div>
-            <div className="rounded-3xl border border-emerald-300/15 bg-emerald-300/10 p-5">
-              <p className="text-xs text-emerald-100/70">获得 XP</p>
-              <p className="mt-2 text-3xl font-semibold text-emerald-100">
+            <div className="pixel-map-tile border-lime-500/30 p-5">
+              <div className="flex items-center justify-center gap-2">
+                <Coins size={18} className="text-lime-200" />
+                <p className="font-display text-[10px] text-lime-200">获得 XP</p>
+              </div>
+              <p className="mt-3 font-display text-[28px] text-lime-100 pixel-text-shadow">
                 +{result.submission.earnedXp}
               </p>
             </div>
-            <div className="rounded-3xl border border-cyan-300/15 bg-cyan-300/10 p-5">
-              <p className="text-xs text-cyan-100/70">当前等级</p>
-              <p className="mt-2 text-3xl font-semibold text-cyan-100">
+            <div className="pixel-map-tile border-cyan-500/30 p-5">
+              <p className="font-display text-[10px] text-cyan-200">当前等级</p>
+              <p className="mt-3 font-display text-[28px] text-cyan-100 pixel-text-shadow">
                 Lv.{result.progress.level}
               </p>
             </div>
           </div>
 
-          <div className="mt-6 rounded-[1.8rem] border border-white/10 bg-black/20 p-5">
-            <div className="inline-flex items-center gap-2 text-amber-100">
-              <Trophy size={18} />
-              <span className="text-sm font-medium">
+          <div className="mt-6 pixel-map-tile p-5">
+            <div className="flex items-center justify-center gap-2">
+              <Trophy size={18} className="text-amber-200" />
+              <span className="font-display text-[11px] text-amber-100">
                 {result.submission.passed ? "挑战成功" : "挑战失败"}
               </span>
             </div>
-            <p className="mt-3 text-sm leading-7 text-stone-300">{result.feedback}</p>
+            <p className="mt-4 text-sm leading-7 text-slate-300">
+              {result.feedback}
+            </p>
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm transition hover:bg-white/10"
+              className="pixel-button-secondary flex items-center gap-2 px-5 py-3 text-[11px] font-display"
               onClick={() => navigate("/map")}
             >
               <ArrowLeft size={16} />
@@ -104,7 +118,7 @@ export default function ResultPage() {
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-2xl bg-stone-100 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-cyan-100"
+              className="pixel-button flex items-center gap-2 px-5 py-3 text-[11px] font-display"
               onClick={() => navigate(`/levels/${result.submission.levelId}`)}
             >
               再试一次
