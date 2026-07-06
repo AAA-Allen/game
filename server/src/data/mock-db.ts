@@ -1,3 +1,5 @@
+import { hashSync } from "bcryptjs";
+
 export type Zone = {
   id: string;
   name: string;
@@ -56,7 +58,7 @@ export const users: User[] = [
   {
     id: "user-001",
     username: "player1",
-    password: "123456",
+    password: hashSync("123456", 10),
     level: 1,
     xp: 0,
   },

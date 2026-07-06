@@ -1,13 +1,18 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import type { RowDataPacket } from "mysql2/promise";
 
+import { pool } from "../config/db";
 import { env } from "../config/env";
-import { users } from "../data/mock-db";
 import { AppError } from "../utils/app-error";
 
 type TokenPayload = {
   userId: string;
   username: string;
+};
+
+type AuthUserRow = RowDataPacket & {
+  id: string;
 };
 
 declare global {
@@ -18,7 +23,7 @@ declare global {
   }
 }
 
-export function requireAuth(
+export async function requireAuth(
   req: Request,
   _res: Response,
   next: NextFunction,
@@ -33,7 +38,16 @@ export function requireAuth(
 
   try {
     const payload = jwt.verify(token, env.jwtSecret) as TokenPayload;
-    const user = users.find((item) => item.id === payload.userId);
+    const [rows] = await pool.execute<AuthUserRow[]>(
+      `
+        SELECT id
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [payload.userId],
+    );
+    const user = rows[0];
 
     if (!user) {
       return next(new AppError("User not found", 401));

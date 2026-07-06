@@ -5,12 +5,12 @@ import { login, register } from "./auth.service";
 
 export const authRouter = Router();
 
-authRouter.post("/register", (req, res) => {
-  const result = register(req.body);
+authRouter.post("/register", async (req, res) => {
+  const result = await register(req.body);
   return sendCreated(res, result, "register success");
 });
 
-authRouter.post("/login", (req, res) => {
-  const result = login(req.body);
+authRouter.post("/login", async (req, res) => {
+  const result = await login(req.body);
   return sendSuccess(res, result, "login success");
 });
