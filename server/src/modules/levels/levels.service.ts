@@ -1,12 +1,14 @@
-import { levels } from "../../data/mock-db";
+import { levels } from "../../data/course-content";
 import { AppError } from "../../utils/app-error";
 
 export function getLevels(zoneId?: string) {
   if (!zoneId) {
-    return levels;
+    return [...levels].sort((left, right) => left.sortOrder - right.sortOrder);
   }
 
-  return levels.filter((level) => level.zoneId === zoneId);
+  return levels
+    .filter((level) => level.zoneId === zoneId)
+    .sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
 export function getLevelById(levelId: string) {

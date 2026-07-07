@@ -6,7 +6,7 @@ import { createSubmission } from "./submissions.service";
 
 export const submissionsRouter = Router();
 
-submissionsRouter.post("/", requireAuth, (req, res) => {
-  const result = createSubmission(req.user!.userId, req.body);
+submissionsRouter.post("/", requireAuth, async (req, res) => {
+  const result = await createSubmission(req.user!.userId, req.body);
   return sendCreated(res, result, "submission created");
 });

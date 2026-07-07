@@ -6,6 +6,7 @@ import { getCurrentProgress } from "./progress.service";
 
 export const progressRouter = Router();
 
-progressRouter.get("/current", requireAuth, (req, res) => {
-  return sendSuccess(res, getCurrentProgress(req.user!.userId));
+progressRouter.get("/current", requireAuth, async (req, res) => {
+  const progress = await getCurrentProgress(req.user!.userId);
+  return sendSuccess(res, progress);
 });
