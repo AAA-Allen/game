@@ -163,6 +163,10 @@ export default function LevelPage() {
   const hintList = level?.hintLevels ?? [];
   const knowledgePoints = level?.knowledgePoints ?? [];
   const prerequisites = level?.prerequisites ?? [];
+  const firstStep = level?.firstStep ?? "";
+  const stepGuide = level?.stepByStep ?? [];
+  const targetPreview = level?.targetPreview ?? [];
+  const commonMistakes = level?.commonMistakes ?? [];
   const missionTabItems: Array<{ key: MissionTab; label: string }> = [
     { key: "overview", label: "概览" },
     { key: "tasks", label: "要求" },
@@ -287,6 +291,16 @@ export default function LevelPage() {
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <div className="pixel-map-tile p-4">
+                  <div className="flex items-center gap-2 text-lime-100">
+                    <Target size={15} />
+                    <p className="font-display text-[10px]">第一步先做什么</p>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                    {firstStep || "先从最核心的结构开始，完成后再逐步补完整个页面。"}
+                  </p>
+                </div>
+
+                <div className="pixel-map-tile p-4">
                   <div className="flex items-center gap-2 text-cyan-100">
                     <ScrollText size={15} />
                     <p className="font-display text-[10px]">学习目标</p>
@@ -344,6 +358,24 @@ export default function LevelPage() {
                 {activeMissionTab === "overview" ? (
                   <div className="mt-4 grid gap-3">
                     <div className="rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
+                      <div className="flex items-center gap-2 text-amber-100">
+                        <ArrowRight size={15} />
+                        <p className="font-display text-[10px]">分步路线</p>
+                      </div>
+                      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                        {stepGuide.length ? (
+                          stepGuide.map((item, index) => (
+                            <li key={item}>
+                              {index + 1}. {item}
+                            </li>
+                          ))
+                        ) : (
+                          <li>先补结构，再检查预览，最后再提交挑战。</li>
+                        )}
+                      </ol>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
                       <div className="flex items-center gap-2 text-lime-100">
                         <Target size={15} />
                         <p className="font-display text-[10px]">任务要求</p>
@@ -370,6 +402,25 @@ export default function LevelPage() {
                             <span>{item}</span>
                           </li>
                         ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
+                      <div className="flex items-center gap-2 text-fuchsia-100">
+                        <Eye size={15} />
+                        <p className="font-display text-[10px]">完成后你会看到</p>
+                      </div>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                        {targetPreview.length ? (
+                          targetPreview.map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                              <span className="text-cyan-200">&gt;</span>
+                              <span>{item}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li>页面会出现更完整的结构，并能在预览区看到变化。</li>
+                        )}
                       </ul>
                     </div>
                   </div>
@@ -416,26 +467,47 @@ export default function LevelPage() {
                 ) : null}
 
                 {activeMissionTab === "hints" ? (
-                  <div className="mt-4 rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
-                    <div className="flex items-center gap-2 text-fuchsia-100">
-                      <Sparkles size={15} />
-                      <p className="font-display text-[10px]">分层提示</p>
+                  <div className="mt-4 grid gap-3">
+                    <div className="rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
+                      <div className="flex items-center gap-2 text-fuchsia-100">
+                        <Sparkles size={15} />
+                        <p className="font-display text-[10px]">分层提示</p>
+                      </div>
+                      <ol className="mt-3 space-y-3 text-sm leading-6 text-slate-300">
+                        {hintList.length ? (
+                          hintList.map((item, index) => (
+                            <li key={item}>
+                              {index + 1}. {item}
+                            </li>
+                          ))
+                        ) : (
+                          <>
+                            <li>1. 先补结构，再补样式，最后补交互。</li>
+                            <li>2. 先点“运行”检查预览，再点击“提交挑战”。</li>
+                            <li>3. 如果失败，优先对照左侧要求逐项排查。</li>
+                          </>
+                        )}
+                      </ol>
                     </div>
-                    <ol className="mt-3 space-y-3 text-sm leading-6 text-slate-300">
-                      {hintList.length ? (
-                        hintList.map((item, index) => (
-                          <li key={item}>
-                            {index + 1}. {item}
-                          </li>
-                        ))
-                      ) : (
-                        <>
-                          <li>1. 先补结构，再补样式，最后补交互。</li>
-                          <li>2. 先点“运行”检查预览，再点击“提交挑战”。</li>
-                          <li>3. 如果失败，优先对照左侧要求逐项排查。</li>
-                        </>
-                      )}
-                    </ol>
+
+                    <div className="rounded-lg border border-slate-700/70 bg-[#101a28] px-4 py-3">
+                      <div className="flex items-center gap-2 text-rose-100">
+                        <Target size={15} />
+                        <p className="font-display text-[10px]">常见错误</p>
+                      </div>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                        {commonMistakes.length ? (
+                          commonMistakes.map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                              <span className="text-rose-300">x</span>
+                              <span>{item}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li>提交前重点检查：标签是否写对、结构是否嵌套正确。</li>
+                        )}
+                      </ul>
+                    </div>
                   </div>
                 ) : null}
               </div>

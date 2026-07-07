@@ -27,6 +27,10 @@ export type Level = {
   learningObjectives: string[];
   prerequisites: string[];
   knowledgePoints: string[];
+  firstStep?: string;
+  stepByStep?: string[];
+  targetPreview?: string[];
+  commonMistakes?: string[];
   taskDescription: string[];
   passCriteria: string[];
   hintLevels: string[];
@@ -86,6 +90,22 @@ export const levels: Level[] = [
     ],
     prerequisites: ["无"],
     knowledgePoints: ["<main>", "<h1>", "<p>"],
+    firstStep: "先在已经给你的 `<main>` 里面写一个 `<h1>` 标题，不要急着一次把所有内容都写完。",
+    stepByStep: [
+      "第 1 步：在 `<main>` 里补一个 `<h1>`，写上公告板标题。",
+      "第 2 步：在标题下面补一个 `<p>`，写一句欢迎说明。",
+      "第 3 步：点击运行，确认页面里已经能看到标题和文字。",
+    ],
+    targetPreview: [
+      "页面中会先看到一行大标题，比如“欢迎来到 WebQuest”。",
+      "标题下面会有一段简短介绍文字，说明这里是冒险起点。",
+      "页面结构很简单，但已经具备网页正文的基本骨架。",
+    ],
+    commonMistakes: [
+      "把文字直接写在 `<main>` 里，没有放进 `<h1>` 或 `<p>`。",
+      "把 `<h1>` 写在 `<main>` 外面，导致结构不完整。",
+      "只写了标题，没有补欢迎说明段落。",
+    ],
     taskDescription: [
       "在页面中创建一个一级标题",
       "在标题下方添加一段欢迎介绍文字",
@@ -103,7 +123,8 @@ export const levels: Level[] = [
       "可以写成 `<main><h1>...</h1><p>...</p></main>`。",
     ],
     starterCode: {
-      html: "<main>\n</main>",
+      html:
+        "<main>\n  <!-- 第一步：先补一个大标题 -->\n  \n  <!-- 第二步：再补一段欢迎文字 -->\n  \n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("WebQuest ready");',
     },
@@ -135,6 +156,22 @@ export const levels: Level[] = [
     ],
     prerequisites: ["认识网页骨架"],
     knowledgePoints: ["<h2>", "<p>", "<strong>", "<em>"],
+    firstStep: "先补一个 `<h2>` 作为任务标题，完成标题后再分两段写说明。",
+    stepByStep: [
+      "第 1 步：在现有主内容区域里添加一个 `<h2>`。",
+      "第 2 步：补两段 `<p>`，分别写任务内容和提醒信息。",
+      "第 3 步：用 `<strong>` 标记关键词，用 `<em>` 标记特别提醒。",
+    ],
+    targetPreview: [
+      "页面里会出现一个二级标题，像任务卡的小标题。",
+      "下面会有两段说明文字，而不是一整坨连续文本。",
+      "重点词和提醒语句会有更明显的语义标记。",
+    ],
+    commonMistakes: [
+      "把 `strong` 或 `em` 当成单独一整段，而不是包住某个重点词。",
+      "只写了一段说明，没有拆成两段。",
+      "把任务标题继续写成 `<h1>`，没有练习新的标题层级。",
+    ],
     taskDescription: [
       "添加一个二级标题，作为任务标题",
       "添加两段说明文字",
@@ -153,7 +190,8 @@ export const levels: Level[] = [
       "语气强调可以用 `<em>`。",
     ],
     starterCode: {
-      html: "<main>\n  <h1>新手村公告</h1>\n</main>",
+      html:
+        "<main>\n  <h1>新手村公告</h1>\n  <!-- 先补一个二级标题 -->\n  \n  <!-- 再补两段任务说明，并在里面练习 strong 和 em -->\n  \n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("mission loaded");',
     },
@@ -185,6 +223,22 @@ export const levels: Level[] = [
     ],
     prerequisites: ["认识网页骨架", "文本标签入门"],
     knowledgePoints: ["<img>", "src", "alt", "<a>", "href"],
+    firstStep: "先加头像图片，不用一口气做完全部；图片放好后，再补资料链接。",
+    stepByStep: [
+      "第 1 步：在简介下面添加一个 `<img>` 标签。",
+      "第 2 步：给图片补上 `src` 和 `alt`。",
+      "第 3 步：再添加一个 `<a>` 链接，写上“查看主页”之类的入口文字。",
+    ],
+    targetPreview: [
+      "页面上会出现一张头像图片。",
+      "图片下方或旁边会有一个可以点击的链接入口。",
+      "你的档案页会比之前更像真正的个人资料卡。",
+    ],
+    commonMistakes: [
+      "只写了 `<img>`，但忘了补 `alt`。",
+      "把链接文字写出来了，却没有用 `<a>` 包裹。",
+      "把 `src` 或 `href` 写成普通文本，没有写成属性。",
+    ],
     taskDescription: [
       "添加一张头像图片",
       "图片必须包含 `alt` 描述",
@@ -203,7 +257,8 @@ export const levels: Level[] = [
       "链接标签格式是 `<a href=\"...\">文本</a>`。",
     ],
     starterCode: {
-      html: "<main>\n  <h1>我的冒险者档案</h1>\n  <p>欢迎来到 WebQuest。</p>\n</main>",
+      html:
+        "<main>\n  <h1>我的冒险者档案</h1>\n  <p>欢迎来到 WebQuest。</p>\n\n  <!-- 先补头像图片，再补个人主页链接 -->\n\n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("profile ready");',
     },
@@ -235,6 +290,23 @@ export const levels: Level[] = [
     ],
     prerequisites: ["前 3 关"],
     knowledgePoints: ["<section>", "<ul>", "<li>", "<div>"],
+    firstStep: "先想清楚“技能清单”是一整块内容，所以第一步先建一个区域容器，再往里放列表。",
+    stepByStep: [
+      "第 1 步：先创建一个 `section`，作为技能区域。",
+      "第 2 步：在区域中添加标题和一个 `ul`。",
+      "第 3 步：给 `ul` 补至少 3 个 `li`，每项代表一个技能。",
+      "第 4 步：如果需要，可以再用 `div` 把标题和列表包成一组。",
+    ],
+    targetPreview: [
+      "页面会多出一个独立的技能区域。",
+      "区域里能看到一个技能清单，而不是零散的几行文字。",
+      "每个技能会独立成项，整体更整齐。",
+    ],
+    commonMistakes: [
+      "直接写很多段落，没有使用 `ul` 和 `li`。",
+      "只写了一个 `li`，没有真正形成列表。",
+      "内容都堆在一起，没有区域或容器进行分组。",
+    ],
     taskDescription: [
       "创建一个技能区域",
       "在区域中放一个无序列表",
@@ -253,7 +325,8 @@ export const levels: Level[] = [
       "每一项技能都需要单独一个 `li`。",
     ],
     starterCode: {
-      html: "<main>\n  <h1>冒险者技能档案</h1>\n</main>",
+      html:
+        "<main>\n  <h1>冒险者技能档案</h1>\n\n  <!-- 在这里创建一个技能区域，并补上技能列表 -->\n\n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("skills ready");',
     },
@@ -285,6 +358,23 @@ export const levels: Level[] = [
     ],
     prerequisites: ["前 4 关"],
     knowledgePoints: ["<form>", "<label>", "<input>", "<button>"],
+    firstStep: "先建 `form`，再一项一项往里面补输入框，不要一开始就把整张表单全写出来。",
+    stepByStep: [
+      "第 1 步：先创建一个 `<form>`。",
+      "第 2 步：补第一个 `label + input`，填写姓名。",
+      "第 3 步：再补第二个 `label + input`，填写职业。",
+      "第 4 步：最后加一个提交按钮。",
+    ],
+    targetPreview: [
+      "页面中会出现一张简单的登记表。",
+      "表单里至少有两个输入框和对应说明文字。",
+      "底部会有一个可点击的提交按钮。",
+    ],
+    commonMistakes: [
+      "只有输入框，没有配套的 `label` 说明。",
+      "把按钮写成普通文字，而不是 `<button>`。",
+      "忘记把输入项放进 `form` 内部。",
+    ],
     taskDescription: [
       "创建一个表单",
       "添加姓名输入框",
@@ -304,7 +394,8 @@ export const levels: Level[] = [
       "按钮可以写成 `<button type=\"submit\">提交</button>`。",
     ],
     starterCode: {
-      html: "<main>\n  <h1>新手村登记处</h1>\n</main>",
+      html:
+        "<main>\n  <h1>新手村登记处</h1>\n\n  <!-- 先创建 form，再依次补姓名、职业和提交按钮 -->\n\n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("register form");',
     },
@@ -336,6 +427,23 @@ export const levels: Level[] = [
     ],
     prerequisites: ["第一章前 5 关"],
     knowledgePoints: ["标题", "段落", "图片", "链接", "列表"],
+    firstStep: "Boss 关不要从上到下一次写完，先把页面分成 4 块：标题、头像简介、技能列表、联系方式。",
+    stepByStep: [
+      "第 1 步：先在 `<main>` 中写出主标题和一段简介。",
+      "第 2 步：补一张头像图片，并加上 `alt`。",
+      "第 3 步：补一个技能列表，至少写 3 项技能。",
+      "第 4 步：最后再补联系方式链接，把页面收尾。",
+    ],
+    targetPreview: [
+      "页面会像一张完整的冒险者名片，而不只是练习片段。",
+      "用户能看到你的标题、头像、简介、技能和联系入口。",
+      "这关完成后，你已经能独立搭出一张结构完整的静态页面。",
+    ],
+    commonMistakes: [
+      "一上来就想一次写完整页，结果结构混乱。",
+      "技能清单没有用列表实现。",
+      "头像图片缺少 `alt`，或联系方式没有用 `<a>` 包起来。",
+    ],
     taskDescription: [
       "创建页面主标题",
       "添加头像图片",
@@ -356,7 +464,8 @@ export const levels: Level[] = [
       "把每部分内容都放在语义清晰的区域中。",
     ],
     starterCode: {
-      html: "<main>\n</main>",
+      html:
+        "<main>\n  <!-- 第 1 块：标题和简介 -->\n\n  <!-- 第 2 块：头像图片 -->\n\n  <!-- 第 3 块：技能列表 -->\n\n  <!-- 第 4 块：联系方式 -->\n</main>",
       css: "body {\n  font-family: sans-serif;\n}",
       javascript: 'console.log("profile page start");',
     },

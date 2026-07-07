@@ -34,6 +34,10 @@ export type Level = {
   learningObjectives: string[];
   prerequisites: string[];
   knowledgePoints: string[];
+  firstStep?: string;
+  stepByStep?: string[];
+  targetPreview?: string[];
+  commonMistakes?: string[];
   taskDescription: string[];
   passCriteria: string[];
   hintLevels: string[];
