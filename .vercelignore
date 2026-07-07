@@ -1,0 +1,6 @@
+server/
+docs/
+database/
+.trae/
+*.md
+.gitignore
