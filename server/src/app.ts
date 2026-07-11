@@ -24,7 +24,7 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(null, true);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`), false);
     },
     credentials: true,
   }),

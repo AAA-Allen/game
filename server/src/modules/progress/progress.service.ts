@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 
 import { pool } from "../../config/db";
+import { getNextUncompletedLevelId } from "../../data/course-content";
 import { AppError } from "../../utils/app-error";
 
 type UserRow = RowDataPacket & {
@@ -67,6 +68,7 @@ export async function getCurrentProgress(userId: string) {
   const [unlockedRows] = unlockedRowsResult;
   const user = userRows[0];
   const progress = progressRows[0];
+  const completedLevelIds = completedRows.map((item) => item.level_id);
 
   if (!user || !progress) {
     throw new AppError("Progress not found", 404);
@@ -76,8 +78,8 @@ export async function getCurrentProgress(userId: string) {
     userId,
     currentLevel: user.level,
     currentXp: user.xp,
-    currentLevelId: progress.current_level_id ?? "",
-    completedLevelIds: completedRows.map((item) => item.level_id),
+    currentLevelId: progress.current_level_id ?? getNextUncompletedLevelId(completedLevelIds),
+    completedLevelIds,
     unlockedZoneIds: unlockedRows.map((item) => item.zone_id),
   };
 }

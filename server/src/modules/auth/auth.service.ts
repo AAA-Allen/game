@@ -5,6 +5,7 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
 
 import { pool } from "../../config/db";
+import { getFirstLevelId, getUnlockableZoneIdsByLevel } from "../../data/course-content";
 import { env } from "../../config/env";
 import { AppError } from "../../utils/app-error";
 
@@ -19,14 +20,6 @@ type UserRow = RowDataPacket & {
   password_hash: string;
   level: number;
   xp: number;
-};
-
-type LevelRow = RowDataPacket & {
-  id: string;
-};
-
-type ZoneRow = RowDataPacket & {
-  id: string;
 };
 
 function toPublicUser(user: Pick<UserRow, "id" | "username" | "level" | "xp">) {
@@ -81,17 +74,10 @@ export async function register(input: unknown) {
       [user.id, user.username, user.passwordHash, user.level, user.xp],
     );
 
-    const [levelRows] = await connection.execute<LevelRow[]>(
-      `
-        SELECT id
-        FROM levels
-        WHERE status = 'active'
-        ORDER BY sort_order ASC, created_at ASC
-        LIMIT 1
-      `,
-    );
-
-    const firstLevelId = levelRows[0]?.id ?? null;
+    const firstLevelId = getFirstLevelId();
+    if (!firstLevelId) {
+      throw new AppError("No levels configured in the system", 500);
+    }
 
     await connection.execute(
       `
@@ -101,28 +87,35 @@ export async function register(input: unknown) {
       [randomUUID(), user.id, firstLevelId],
     );
 
-    const [zoneRows] = await connection.execute<ZoneRow[]>(
-      `
-        SELECT id
-        FROM zones
-        WHERE status = 'active' AND required_level <= ?
-      `,
-      [user.level],
-    );
-
-    for (const zone of zoneRows) {
+    const zoneIdsToUnlock = getUnlockableZoneIdsByLevel(user.level);
+    if (zoneIdsToUnlock.length > 0) {
+      const placeholders = zoneIdsToUnlock.map(() => "(?, ?, ?)").join(", ");
+      const values = zoneIdsToUnlock.flatMap((zoneId) => [
+        randomUUID(),
+        user.id,
+        zoneId,
+      ]);
       await connection.execute(
-        `
-          INSERT INTO user_unlocked_zones (id, user_id, zone_id)
-          VALUES (?, ?, ?)
-        `,
-        [randomUUID(), user.id, zone.id],
+        `INSERT INTO user_unlocked_zones (id, user_id, zone_id) VALUES ${placeholders}`,
+        values,
       );
     }
 
     await connection.commit();
   } catch (error) {
     await connection.rollback();
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "errno" in error &&
+      (error as { errno: number }).errno === 1062
+    ) {
+      // Only re-check the username-specific duplicate key
+      const exists = await getUserByUsername(user.username);
+      if (exists) {
+        throw new AppError("Username already exists", 409);
+      }
+    }
     throw error;
   } finally {
     connection.release();
@@ -143,6 +136,8 @@ export async function login(input: unknown) {
   const user = await getUserByUsername(payload.username);
 
   if (!user || !compareSync(payload.password, user.password_hash)) {
+    // Delay to slow down brute force attempts
+    await new Promise((resolve) => setTimeout(resolve, 800));
     throw new AppError("Username or password is incorrect", 401);
   }
 

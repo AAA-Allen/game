@@ -13,20 +13,80 @@ import {
   Target,
   Trophy,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getLevelById, getLevels, submitLevel } from "@/services/game.service";
+import { getLevelById, getLevels, getProgress, submitLevel } from "@/services/game.service";
 import type { Level } from "@/types/api";
 
 type CodeTab = "html" | "css" | "javascript";
 type MissionTab = "overview" | "tasks" | "hints";
+type LevelDraft = {
+  html: string;
+  css: string;
+  javascript: string;
+};
+
+function getLevelDraftKey(levelId: string) {
+  return `webquest_level_draft_${levelId}`;
+}
+
+function readLevelDraft(levelId: string): LevelDraft | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(getLevelDraftKey(levelId));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LevelDraft>;
+
+    if (
+      typeof parsed.html === "string" &&
+      typeof parsed.css === "string" &&
+      typeof parsed.javascript === "string"
+    ) {
+      return {
+        html: parsed.html,
+        css: parsed.css,
+        javascript: parsed.javascript,
+      };
+    }
+  } catch {
+    window.localStorage.removeItem(getLevelDraftKey(levelId));
+  }
+
+  return null;
+}
+
+function writeLevelDraft(levelId: string, draft: LevelDraft) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(getLevelDraftKey(levelId), JSON.stringify(draft));
+}
+
+function clearLevelDraft(levelId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(getLevelDraftKey(levelId));
+}
 
 export default function LevelPage() {
   const navigate = useNavigate();
   const { id = "" } = useParams();
   const [level, setLevel] = useState<Level | null>(null);
+  const [previousLevel, setPreviousLevel] = useState<Level | null>(null);
   const [nextLevel, setNextLevel] = useState<Level | null>(null);
+  const [completedLevelIds, setCompletedLevelIds] = useState<string[]>([]);
+  const [currentUnlockedLevelId, setCurrentUnlockedLevelId] = useState("");
   const [activeTab, setActiveTab] = useState<CodeTab>("html");
   const [html, setHtml] = useState("");
   const [css, setCss] = useState("");
@@ -42,22 +102,44 @@ export default function LevelPage() {
       setFeedback("");
 
       try {
-        const [levelData, allLevels] = await Promise.all([getLevelById(id), getLevels()]);
+        const [levelData, allLevels, progressData] = await Promise.all([
+          getLevelById(id),
+          getLevels(),
+          getProgress().catch(() => null),
+        ]);
         const sortedLevels = [...allLevels].sort((a, b) => a.sortOrder - b.sortOrder);
         const currentIndex = sortedLevels.findIndex((item) => item.id === id);
+        const defaultUnlockedLevelId = progressData?.currentLevelId ?? sortedLevels[0]?.id ?? "";
 
         setLevel(levelData);
+        setCompletedLevelIds(progressData?.completedLevelIds ?? []);
+        setCurrentUnlockedLevelId(defaultUnlockedLevelId);
+        setPreviousLevel(
+          currentIndex > 0
+            ? sortedLevels[currentIndex - 1]
+            : null,
+        );
         setNextLevel(
           currentIndex >= 0 && currentIndex < sortedLevels.length - 1
             ? sortedLevels[currentIndex + 1]
             : null,
         );
-        setHtml(levelData.starterCode.html);
-        setCss(levelData.starterCode.css);
-        setJavascript(levelData.starterCode.javascript);
+        const savedDraft = readLevelDraft(levelData.id);
+        const draft = savedDraft ?? levelData.starterCode;
+
+        setHtml(draft.html);
+        setCss(draft.css);
+        setJavascript(draft.javascript);
         setActiveTab("html");
         setActiveMissionTab("overview");
+
+        if (savedDraft) {
+          setFeedback("已恢复上次保存的答题内容。");
+        }
       } catch (error) {
+        setCompletedLevelIds([]);
+        setCurrentUnlockedLevelId("");
+        setPreviousLevel(null);
         setNextLevel(null);
         setFeedback(error instanceof Error ? error.message : "关卡加载失败");
       } finally {
@@ -71,7 +153,10 @@ export default function LevelPage() {
   }, [id]);
 
   const previewContent = useMemo(
-    () => `
+    () => {
+      // Escape </script> in user code to prevent it from breaking the iframe's script tag
+      const safeJs = javascript.replace(/<\/script>/gi, '<\\/script>');
+      return `
       <!doctype html>
       <html lang="zh-CN">
         <head>
@@ -86,14 +171,15 @@ export default function LevelPage() {
           ${html}
           <script>
             try {
-              ${javascript}
+              ${safeJs}
             } catch (error) {
               document.body.insertAdjacentHTML("beforeend", '<pre style="margin-top:16px;color:#b91c1c;background:#fee2e2;padding:12px;border-radius:12px;">' + String(error) + '</pre>');
             }
-          </script>
+          <\/script>
         </body>
       </html>
-    `,
+    `;
+    },
     [html, css, javascript],
   );
 
@@ -106,12 +192,17 @@ export default function LevelPage() {
     setFeedback("");
 
     try {
+      writeLevelDraft(level.id, { html, css, javascript });
+
       const result = await submitLevel({
         levelId: level.id,
         html,
         css,
         javascript,
       });
+
+      // Clear draft after successful submission so re-entering shows fresh starter code
+      clearLevelDraft(level.id);
 
       navigate(`/result/${level.id}`, {
         state: {
@@ -131,10 +222,11 @@ export default function LevelPage() {
       return;
     }
 
+    clearLevelDraft(level.id);
     setHtml(level.starterCode.html);
     setCss(level.starterCode.css);
     setJavascript(level.starterCode.javascript);
-    setFeedback("");
+    setFeedback("已恢复到关卡初始代码。");
   }
 
   function goToNextLevel() {
@@ -142,10 +234,34 @@ export default function LevelPage() {
       return;
     }
 
+    if (!isLevelUnlocked(nextLevel)) {
+      setFeedback(`下一关「${nextLevel.title}」尚未解锁，请先返回地图推进当前区域进度。`);
+      return;
+    }
+
     setFeedback("");
     setActiveTab("html");
     setActiveMissionTab("overview");
     navigate(`/levels/${nextLevel.id}`);
+  }
+
+  function goToPreviousLevel() {
+    if (!previousLevel) {
+      return;
+    }
+
+    setFeedback("");
+    setActiveTab("html");
+    setActiveMissionTab("overview");
+    navigate(`/levels/${previousLevel.id}`);
+  }
+
+  function isLevelUnlocked(targetLevel: Level | null) {
+    if (!targetLevel) {
+      return false;
+    }
+
+    return completedLevelIds.includes(targetLevel.id) || currentUnlockedLevelId === targetLevel.id;
   }
 
   const tabs: Array<{ key: CodeTab; label: string }> = [
@@ -156,6 +272,8 @@ export default function LevelPage() {
 
   const activeValue =
     activeTab === "html" ? html : activeTab === "css" ? css : javascript;
+  const currentLevelUnlocked = isLevelUnlocked(level);
+  const nextLevelUnlocked = isLevelUnlocked(nextLevel);
 
   const missionObjectives = level?.learningObjectives ?? [];
   const taskList = level?.taskDescription ?? [];
@@ -206,6 +324,44 @@ export default function LevelPage() {
     setFeedback("已执行代码格式化。");
   }
 
+  // Debounced draft auto-save to avoid excessive localStorage writes during fast typing
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRef = useRef<LevelDraft>({ html, css, javascript });
+
+  // Keep ref in sync so beforeunload can read latest values synchronously
+  draftRef.current = { html, css, javascript };
+
+  useEffect(() => {
+    if (!level) {
+      return;
+    }
+
+    if (draftSaveTimer.current) {
+      clearTimeout(draftSaveTimer.current);
+    }
+    draftSaveTimer.current = setTimeout(() => {
+      writeLevelDraft(level.id, draftRef.current);
+    }, 800);
+
+    return () => {
+      if (draftSaveTimer.current) {
+        clearTimeout(draftSaveTimer.current);
+      }
+    };
+  }, [level, html, css, javascript]);
+
+  // Save draft synchronously on page unload to avoid losing unsaved changes
+  useEffect(() => {
+    function handleBeforeUnload() {
+      if (level) {
+        writeLevelDraft(level.id, draftRef.current);
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [level]);
+
   return (
     <div className="h-screen overflow-hidden bg-[#0a1220] text-stone-100">
       <div className="absolute inset-0 pixel-grid-bg opacity-10" />
@@ -244,7 +400,40 @@ export default function LevelPage() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[400px_minmax(0,1fr)] 2xl:grid-cols-[420px_minmax(0,1fr)]">
+        {!loading && level && !currentLevelUnlocked ? (
+          <div className="pixel-panel flex min-h-0 flex-1 items-center justify-center p-6">
+            <div className="w-full max-w-2xl text-center">
+              <p className="font-display text-[11px] text-rose-200">LOCKED LEVEL</p>
+              <h2 className="mt-4 font-display text-[22px] leading-[1.9] text-stone-50 pixel-text-shadow">
+                这一关尚未解锁
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                需要先通关上一关，才能继续挑战 <span className="font-semibold text-amber-100">{level.title}</span>。
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  className="pixel-button-secondary flex items-center gap-2 px-4 py-3 text-[11px] font-display"
+                  onClick={() => navigate("/map")}
+                >
+                  <ArrowLeft size={14} />
+                  返回地图
+                </button>
+                {previousLevel ? (
+                  <button
+                    type="button"
+                    className="pixel-button flex items-center gap-2 px-4 py-3 text-[11px] font-display"
+                    onClick={goToPreviousLevel}
+                  >
+                    前往上一关
+                    <ArrowRight size={14} />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : (
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1.15fr)_minmax(300px,0.85fr)] 2xl:grid-cols-[390px_minmax(0,1.2fr)_minmax(340px,0.9fr)]">
           <section className="pixel-panel min-h-0 overflow-hidden p-5 md:p-6">
             <div className="h-full overflow-y-auto pr-1">
               <div className="flex items-start justify-between gap-3">
@@ -520,203 +709,229 @@ export default function LevelPage() {
             </div>
           </section>
 
-          <section className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1.45fr)_minmax(260px,0.95fr)] 2xl:grid-rows-[minmax(0,1.55fr)_minmax(290px,1fr)]">
-            <div className="pixel-panel flex min-h-0 flex-col p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-display text-[11px] text-cyan-200">CODE EDITOR</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    切换 HTML / CSS / JavaScript，代码与预览保持同屏。
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex gap-1 rounded-md bg-[#09131f] p-1 pixel-outline">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        className={`px-4 py-2 text-[11px] font-display ${
-                          activeTab === tab.key
-                            ? "pixel-button text-white"
-                            : "pixel-button-secondary text-slate-200"
-                        }`}
-                        onClick={() => setActiveTab(tab.key)}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
-                    onClick={formatCurrentEditor}
-                  >
-                    <Wand2 size={14} />
-                    格式化
-                  </button>
-                  <button
-                    type="button"
-                    className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
-                    onClick={resetCode}
-                  >
-                    <RotateCcw size={14} />
-                    重置
-                  </button>
-                  <button
-                    type="button"
-                    className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
-                    onClick={() => setFeedback("预览已实时更新，可以直接查看下方运行结果。")}
-                  >
-                    <Play size={14} />
-                    运行
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    className="pixel-button flex items-center gap-2 px-4 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-70"
-                    onClick={handleSubmit}
-                  >
-                    <Send size={14} />
-                    {submitting ? "提交中..." : "提交挑战"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!nextLevel || loading}
-                    className="pixel-button-secondary flex items-center gap-2 px-4 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={goToNextLevel}
-                    title={nextLevel ? `前往 ${nextLevel.title}` : "当前已经是最后一关"}
-                  >
-                    下一关
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
+          <section className="pixel-panel flex min-h-0 flex-col p-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-display text-[11px] text-cyan-200">CODE EDITOR</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  中间专注写代码，右侧实时查看结果。
+                </p>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden pixel-outline">
-                <Editor
-                  path={getEditorPath(activeTab)}
-                  height="100%"
-                  language={getEditorLanguage(activeTab)}
-                  value={activeValue}
-                  theme="vs-dark"
-                  beforeMount={(monaco) => {
-                    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-                      allowNonTsExtensions: true,
-                      target: monaco.languages.typescript.ScriptTarget.ES2020,
-                    });
-
-                    monaco.languages.html.htmlDefaults.setOptions({
-                      format: {
-                        tabSize: 2,
-                        insertSpaces: true,
-                        wrapLineLength: 120,
-                        unformatted: "wbr",
-                        contentUnformatted: "pre,code,textarea",
-                        indentInnerHtml: true,
-                        preserveNewLines: true,
-                        maxPreserveNewLines: 2,
-                      },
-                      suggest: {
-                        html5: true,
-                        angular1: false,
-                        ionic: false,
-                      },
-                    });
-
-                    monaco.languages.css.cssDefaults.setOptions({
-                      validate: true,
-                      lint: {
-                        compatibleVendorPrefixes: "ignore",
-                        vendorPrefix: "warning",
-                        duplicateProperties: "warning",
-                        emptyRules: "warning",
-                        importStatement: "ignore",
-                        boxModel: "ignore",
-                        universalSelector: "ignore",
-                        zeroUnits: "ignore",
-                      },
-                    });
-                  }}
-                  onMount={(editor, monaco) => {
-                    (
-                      globalThis as {
-                        monacoEditorInstance?: typeof editor;
-                      }
-                    ).monacoEditorInstance = editor;
-
-                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                      void editor.getAction("editor.action.formatDocument")?.run();
-                      setFeedback("已格式化当前代码。");
-                    });
-                  }}
-                  onChange={(value) => {
-                    const next = value ?? "";
-                    if (activeTab === "html") setHtml(next);
-                    if (activeTab === "css") setCss(next);
-                    if (activeTab === "javascript") setJavascript(next);
-                  }}
-                  options={{
-                    fontSize: 14,
-                    minimap: { enabled: false },
-                    scrollBeyondLastLine: false,
-                    wordWrap: "on",
-                    tabSize: 2,
-                    insertSpaces: true,
-                    formatOnPaste: true,
-                    formatOnType: true,
-                    autoClosingBrackets: "always",
-                    autoClosingQuotes: "always",
-                    autoClosingDelete: "always",
-                    autoClosingOvertype: "always",
-                    autoIndent: "advanced",
-                    quickSuggestions: {
-                      other: true,
-                      comments: false,
-                      strings: true,
-                    },
-                    suggestOnTriggerCharacters: true,
-                    acceptSuggestionOnEnter: "on",
-                    tabCompletion: "on",
-                    wordBasedSuggestions: "currentDocument",
-                    parameterHints: {
-                      enabled: true,
-                    },
-                    snippetSuggestions: "top",
-                    inlineSuggest: {
-                      enabled: true,
-                    },
-                  }}
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!previousLevel || loading}
+                  className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={goToPreviousLevel}
+                  title={previousLevel ? `前往 ${previousLevel.title}` : "当前已经是第一关"}
+                >
+                  <ArrowLeft size={14} />
+                  上一关
+                </button>
+                <button
+                  type="button"
+                  disabled={!nextLevel || loading || !nextLevelUnlocked}
+                  className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={goToNextLevel}
+                  title={
+                    !nextLevel
+                      ? "当前已经是最后一关"
+                      : nextLevelUnlocked
+                        ? `前往 ${nextLevel.title}`
+                        : `${nextLevel.title} 尚未解锁`
+                  }
+                >
+                  下一关
+                  <ArrowRight size={14} />
+                </button>
               </div>
             </div>
 
-            <div className="pixel-panel flex min-h-0 flex-col p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Eye size={15} className="text-cyan-200" />
-                  <p className="font-display text-[11px] text-slate-400">实时预览</p>
-                </div>
-                <div className="pixel-chip px-3 py-1.5 text-[10px] text-slate-300">
-                  预览画布
-                </div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex gap-1 rounded-md bg-[#09131f] p-1 pixel-outline">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    className={`px-4 py-2 text-[11px] font-display ${
+                      activeTab === tab.key
+                        ? "pixel-button text-white"
+                        : "pixel-button-secondary text-slate-200"
+                    }`}
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-              <div className="min-h-0 flex-1 pixel-outline overflow-hidden bg-[#d9e2ef] p-3">
-                <div className="flex h-full items-center justify-center rounded-[10px] border border-slate-400/60 bg-[#eef3fb] p-2">
-                  <div className="h-full w-full max-w-[960px] overflow-hidden rounded-[8px] border border-slate-300 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.12)]">
-                    <iframe
-                      title="WebQuest Preview"
-                      sandbox="allow-scripts"
-                      srcDoc={previewContent}
-                      className="h-full w-full"
-                    />
-                  </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
+                  onClick={formatCurrentEditor}
+                >
+                  <Wand2 size={14} />
+                  格式化
+                </button>
+                <button
+                  type="button"
+                  className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
+                  onClick={resetCode}
+                >
+                  <RotateCcw size={14} />
+                  重置
+                </button>
+                <button
+                  type="button"
+                  className="pixel-button-secondary flex items-center gap-2 px-3 py-2 text-[11px] font-display"
+                  onClick={() => setFeedback("预览已实时更新，可以直接查看右侧运行结果。")}
+                >
+                  <Play size={14} />
+                  运行
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  className="pixel-button flex items-center gap-2 px-4 py-2 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={handleSubmit}
+                >
+                  <Send size={14} />
+                  {submitting ? "提交中..." : "提交挑战"}
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className="mb-3 pixel-outline bg-[#3a1a25] px-4 py-3 text-sm leading-6 text-rose-200">
+                {feedback}
+              </div>
+            ) : null}
+
+            <div className="min-h-0 flex-1 overflow-hidden pixel-outline">
+              <Editor
+                path={getEditorPath(activeTab)}
+                height="100%"
+                language={getEditorLanguage(activeTab)}
+                value={activeValue}
+                theme="vs-dark"
+                beforeMount={(monaco) => {
+                  monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                    allowNonTsExtensions: true,
+                    target: monaco.languages.typescript.ScriptTarget.ES2020,
+                  });
+
+                  monaco.languages.html.htmlDefaults.setOptions({
+                    format: {
+                      tabSize: 2,
+                      insertSpaces: true,
+                      wrapLineLength: 120,
+                      unformatted: "wbr",
+                      contentUnformatted: "pre,code,textarea",
+                      indentInnerHtml: true,
+                      preserveNewLines: true,
+                      maxPreserveNewLines: 2,
+                    },
+                    suggest: {
+                      html5: true,
+                      angular1: false,
+                      ionic: false,
+                    },
+                  });
+
+                  monaco.languages.css.cssDefaults.setOptions({
+                    validate: true,
+                    lint: {
+                      compatibleVendorPrefixes: "ignore",
+                      vendorPrefix: "warning",
+                      duplicateProperties: "warning",
+                      emptyRules: "warning",
+                      importStatement: "ignore",
+                      boxModel: "ignore",
+                      universalSelector: "ignore",
+                      zeroUnits: "ignore",
+                    },
+                  });
+                }}
+                onMount={(editor, monaco) => {
+                  (
+                    globalThis as {
+                      monacoEditorInstance?: typeof editor;
+                    }
+                  ).monacoEditorInstance = editor;
+
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                    void editor.getAction("editor.action.formatDocument")?.run();
+                    setFeedback("已格式化当前代码。");
+                  });
+                }}
+                onChange={(value) => {
+                  const next = value ?? "";
+                  if (activeTab === "html") setHtml(next);
+                  if (activeTab === "css") setCss(next);
+                  if (activeTab === "javascript") setJavascript(next);
+                }}
+                options={{
+                  fontSize: 14,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                  tabSize: 2,
+                  insertSpaces: true,
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  autoClosingBrackets: "always",
+                  autoClosingQuotes: "always",
+                  autoClosingDelete: "always",
+                  autoClosingOvertype: "always",
+                  autoIndent: "advanced",
+                  quickSuggestions: {
+                    other: true,
+                    comments: false,
+                    strings: true,
+                  },
+                  suggestOnTriggerCharacters: true,
+                  acceptSuggestionOnEnter: "on",
+                  tabCompletion: "on",
+                  wordBasedSuggestions: "currentDocument",
+                  parameterHints: {
+                    enabled: true,
+                  },
+                  snippetSuggestions: "top",
+                  inlineSuggest: {
+                    enabled: true,
+                  },
+                }}
+              />
+            </div>
+          </section>
+
+          <section className="pixel-panel flex min-h-0 flex-col p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Eye size={15} className="text-cyan-200" />
+                <p className="font-display text-[11px] text-slate-400">实时预览</p>
+              </div>
+              <div className="pixel-chip px-3 py-1.5 text-[10px] text-slate-300">
+                预览画布
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 pixel-outline overflow-hidden bg-[#d9e2ef] p-3">
+              <div className="flex h-full items-center justify-center rounded-[10px] border border-slate-400/60 bg-[#eef3fb] p-2">
+                <div className="h-full w-full overflow-hidden rounded-[8px] border border-slate-300 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.12)]">
+                  <iframe
+                    title="WebQuest Preview"
+                    sandbox="allow-scripts"
+                    srcDoc={previewContent}
+                    className="h-full w-full"
+                  />
                 </div>
               </div>
             </div>
           </section>
         </div>
+        )}
       </div>
     </div>
   );

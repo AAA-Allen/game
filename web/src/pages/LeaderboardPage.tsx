@@ -1,34 +1,10 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronUp, Crown, Medal, Star, Trophy, Users, Zap } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, ChevronUp, Crown, Medal, RefreshCw, Trophy, Users, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+import { getLeaderboard } from "@/services/game.service";
 import type { LeaderboardEntry } from "@/types/api";
-
-type FilterKey = "all" | "monthly" | "weekly";
-
-const filters: { key: FilterKey; label: string }[] = [
-  { key: "all", label: "全服" },
-  { key: "monthly", label: "本月" },
-  { key: "weekly", label: "本周" },
-];
-
-const mockLeaderboard: LeaderboardEntry[] = [
-  { rank: 1, userId: "alpha01", username: "代码剑圣", level: 25, xp: 15400, title: "全栈大师", completedLevels: 48 },
-  { rank: 2, userId: "beta02", username: "像素法师", level: 22, xp: 13100, title: "算法王者", completedLevels: 42 },
-  { rank: 3, userId: "gamma03", username: "网络游侠", level: 20, xp: 11800, title: "CSS幻术师", completedLevels: 38 },
-  { rank: 4, userId: "delta04", username: "逻辑领主", level: 18, xp: 9600, title: "JS操纵者", completedLevels: 34 },
-  { rank: 5, userId: "epsilon05", username: "数据猎人", level: 16, xp: 8200, title: "数据库探险家", completedLevels: 30 },
-  { rank: 6, userId: "zeta06", username: "脚本忍者", level: 14, xp: 6800, title: "前端守卫", completedLevels: 25 },
-  { rank: 7, userId: "current", username: "你", level: 7, xp: 3200, title: "代码冒险家", completedLevels: 12 },
-  { rank: 8, userId: "eta08", username: "编译勇者", level: 12, xp: 5500, title: "调试专家", completedLevels: 22 },
-  { rank: 9, userId: "theta09", username: "递归骑士", level: 10, xp: 4600, title: "递归大师", completedLevels: 18 },
-  { rank: 10, userId: "iota10", username: "异步射手", level: 9, xp: 3900, title: "Promise战士", completedLevels: 15 },
-  { rank: 11, userId: "kappa11", username: "缓存行者", level: 8, xp: 3500, title: "性能优化师", completedLevels: 14 },
-  { rank: 12, userId: "lambda12", username: "守卫先锋", level: 6, xp: 2800, title: "类型卫士", completedLevels: 10 },
-  { rank: 13, userId: "mu13", username: "状态舵手", level: 5, xp: 2100, title: "React学徒", completedLevels: 8 },
-  { rank: 14, userId: "nu14", username: "样式织者", level: 4, xp: 1500, title: "CSS新手", completedLevels: 6 },
-  { rank: 15, userId: "xi15", username: "初行代码", level: 2, xp: 600, title: "代码学徒", completedLevels: 3 },
-];
 
 const rankColors = [
   { border: "border-amber-400", glow: "shadow-[0_0_20px_rgba(255,200,50,0.25)]", bg: "from-amber-400/10 via-amber-500/5 to-transparent" },
@@ -40,28 +16,10 @@ const rankMedalIcons = [Crown, Medal, Medal];
 const rankMedalColors = ["text-amber-300", "text-slate-200", "text-amber-600"];
 
 const podiumLayout = [
-  { position: "center", order: 1, offsetY: "translateY(0)", scale: "scale(1)" },
-  { position: "left", order: 0, offsetY: "translateY(18px)", scale: "scale(0.92)" },
+  { position: "left", order: 1, offsetY: "translateY(18px)", scale: "scale(0.92)" },
+  { position: "center", order: 0, offsetY: "translateY(0)", scale: "scale(1)" },
   { position: "right", order: 2, offsetY: "translateY(32px)", scale: "scale(0.88)" },
 ];
-
-function BarChartIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="12" y1="20" x2="12" y2="10" />
-      <line x1="18" y1="20" x2="18" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="16" />
-    </svg>
-  );
-}
 
 function xpToPercent(xp: number, maxXp: number): number {
   if (maxXp <= 0) return 0;
@@ -77,14 +35,95 @@ function nextLevelXp(xp: number): number {
   return 20000;
 }
 
+function getCurrentUserId(): string | null {
+  try {
+    const token = localStorage.getItem("webquest_token");
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const topThree = mockLeaderboard.slice(0, 3);
-  const restRankings = mockLeaderboard.slice(3);
+  // Re-derive on every render so the highlight stays correct after login/logout
+  const currentUserId = useMemo(() => getCurrentUserId(), []);
 
-  const maxXp = mockLeaderboard.reduce((max, entry) => Math.max(max, entry.xp), 0);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    getLeaderboard()
+      .then((data) => {
+        if (!cancelled) {
+          setEntries(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err?.message ?? "加载排行榜失败");
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const currentUserEntry = entries.find((e) => e.userId === currentUserId);
+  const topThree = entries.slice(0, 3);
+  const restRankings = entries.slice(3);
+
+  if (loading) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center text-stone-100">
+        <p className="text-sm text-slate-400">加载排行榜...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 text-stone-100">
+        <p className="text-sm text-red-400">{error}</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            className="pixel-button-secondary px-5 py-2.5 text-xs"
+            onClick={() => navigate("/map")}
+          >
+            返回地图
+          </button>
+          <button
+            type="button"
+            className="pixel-button flex items-center gap-2 px-5 py-2.5 text-xs"
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              getLeaderboard()
+                .then((data) => {
+                  setEntries(data);
+                  setLoading(false);
+                })
+                .catch((err) => {
+                  setError(err?.message ?? "加载排行榜失败");
+                  setLoading(false);
+                });
+            }}
+          >
+            <RefreshCw size={14} />
+            重试
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden text-stone-100">
@@ -103,7 +142,7 @@ export default function LeaderboardPage() {
           <div className="flex items-center gap-3">
             <div className="pixel-chip flex items-center gap-2 px-3 py-1.5 text-xs">
               <Users size={14} className="text-cyan-200" />
-              {mockLeaderboard.length} 位冒险者
+              {entries.length} 位冒险者
             </div>
             <button
               type="button"
@@ -117,117 +156,92 @@ export default function LeaderboardPage() {
         </div>
 
         {/* ── Podium Section ── */}
-        <section className="mb-6">
-          <div className="flex flex-col items-center justify-end gap-1 sm:flex-row sm:items-end sm:gap-0">
-            {podiumLayout.map((layout, index) => {
-              const entryIndex = layout.order;
-              const entry = topThree[entryIndex];
-              if (!entry) return null;
-              const colors = rankColors[entryIndex];
-              const Icon = rankMedalIcons[entryIndex];
-              const medalColor = rankMedalColors[entryIndex];
+        {topThree.length > 0 && (
+          <section className="mb-6">
+            <div className="flex flex-col items-center justify-end gap-1 sm:flex-row sm:items-end sm:justify-center sm:gap-0">
+              {podiumLayout.map((layout, index) => {
+                const entryIndex = layout.order;
+                const entry = topThree[entryIndex];
+                if (!entry) return null;
+                const colors = rankColors[entryIndex];
+                const Icon = rankMedalIcons[entryIndex];
+                const medalColor = rankMedalColors[entryIndex];
 
-              return (
-                <motion.div
-                  key={entry.userId}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.12 }}
-                  className={`flex w-full flex-col items-center px-2 sm:w-auto ${
-                    layout.position === "center"
-                      ? "z-10 sm:-mx-2"
-                      : "z-0"
-                  }`}
-                  style={{ transform: layout.scale }}
-                >
-                  {/* Crown / Medal */}
-                  <div className="mb-1">
-                    {entryIndex === 0 ? (
-                      <Crown size={28} className="text-amber-300 drop-shadow-[0_0_10px_rgba(255,200,50,0.6)]" />
-                    ) : (
-                      <Medal size={24} className={medalColor} />
-                    )}
-                  </div>
-
-                  {/* Avatar placeholder */}
-                  <div
-                    className={`mb-2 flex h-14 w-14 items-center justify-center rounded-full border-2 ${colors.border} bg-gradient-to-b ${colors.bg} ${colors.glow}`}
-                  >
-                    <span className="font-display text-lg text-stone-100">
-                      {entry.username.charAt(0)}
-                    </span>
-                  </div>
-
-                  {/* Card */}
-                  <div
-                    className={`pixel-map-tile w-full min-w-[180px] px-4 py-3 text-center sm:min-w-[200px] ${
-                      entryIndex === 0 ? "border-amber-400/60" : ""
+                return (
+                  <motion.div
+                    key={entry.userId}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.12 }}
+                    className={`flex w-full flex-col items-center px-2 sm:w-auto ${
+                      layout.position === "center"
+                        ? "z-10 sm:-mx-2"
+                        : "z-0"
                     }`}
-                    style={
-                      entryIndex === 0
-                        ? { boxShadow: "0 0 30px rgba(255,200,50,0.15), 0 10px 0 rgba(5,10,18,0.9)" }
-                        : undefined
-                    }
+                    style={{ transform: layout.scale }}
                   >
-                    <p className="font-display text-[10px] leading-6 text-stone-100">
-                      {entry.username}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-300">{entry.title}</p>
-                    <div className="mt-2 flex items-center justify-center gap-3 text-xs">
-                      <span className="pixel-chip px-2 py-0.5 text-[10px] text-cyan-200">
-                        Lv.{entry.level}
-                      </span>
-                      <span className="flex items-center gap-1 text-amber-200">
-                        <Zap size={12} />
-                        {entry.xp.toLocaleString()}
+                    <div className="mb-1">
+                      {entryIndex === 0 ? (
+                        <Crown size={28} className="text-amber-300 drop-shadow-[0_0_10px_rgba(255,200,50,0.6)]" />
+                      ) : (
+                        <Medal size={24} className={medalColor} />
+                      )}
+                    </div>
+
+                    <div
+                      className={`mb-2 flex h-14 w-14 items-center justify-center rounded-full border-2 ${colors.border} bg-gradient-to-b ${colors.bg} ${colors.glow}`}
+                    >
+                      <span className="font-display text-lg text-stone-100">
+                        {entry.username.charAt(0)}
                       </span>
                     </div>
-                    <p className="mt-2 text-[10px] text-slate-400">
-                      {entry.completedLevels} 关通关
-                    </p>
-                  </div>
 
-                  {/* Base height offset */}
-                  <div
-                    className={`h-6 w-full rounded-b-lg ${
-                      entryIndex === 0
-                        ? "bg-gradient-to-t from-amber-500/20 to-transparent"
-                        : entryIndex === 1
-                          ? "bg-gradient-to-t from-slate-400/15 to-transparent"
-                          : "bg-gradient-to-t from-amber-700/15 to-transparent"
-                    }`}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
+                    <div
+                      className={`pixel-map-tile w-full min-w-[180px] px-4 py-3 text-center sm:min-w-[200px] ${
+                        entryIndex === 0 ? "border-amber-400/60" : ""
+                      }`}
+                      style={
+                        entryIndex === 0
+                          ? { boxShadow: "0 0 30px rgba(255,200,50,0.15), 0 10px 0 rgba(5,10,18,0.9)" }
+                          : undefined
+                      }
+                    >
+                      <p className="font-display text-[10px] leading-6 text-stone-100">
+                        {entry.username}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-300">{entry.title}</p>
+                      <div className="mt-2 flex items-center justify-center gap-3 text-xs">
+                        <span className="pixel-chip px-2 py-0.5 text-[10px] text-cyan-200">
+                          Lv.{entry.level}
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-200">
+                          <Zap size={12} />
+                          {(entry.xp ?? 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[10px] text-slate-400">
+                        {entry.completedLevels ?? 0} 关通关
+                      </p>
+                    </div>
 
-        {/* ── Filter Tabs ── */}
-        <div className="mb-4 flex items-center gap-3">
-          {filters.map((filter) => (
-            <button
-              key={filter.key}
-              type="button"
-              className={
-                activeFilter === filter.key
-                  ? "pixel-button px-5 py-2.5 text-xs"
-                  : "pixel-button-secondary px-5 py-2.5 text-xs"
-              }
-              onClick={() => setActiveFilter(filter.key)}
-            >
-              {filter.label}
-            </button>
-          ))}
-          <div className="ml-auto hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-            <BarChartIcon className="h-4 w-4" />
-            <span>数据每 5 分钟更新</span>
-          </div>
-        </div>
+                    <div
+                      className={`h-6 w-full rounded-b-lg ${
+                        entryIndex === 0
+                          ? "bg-gradient-to-t from-amber-500/20 to-transparent"
+                          : entryIndex === 1
+                            ? "bg-gradient-to-t from-slate-400/15 to-transparent"
+                            : "bg-gradient-to-t from-amber-700/15 to-transparent"
+                      }`}
+                    />
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ── Rankings Table ── */}
         <section className="pixel-panel overflow-hidden p-1">
-          {/* Header row (hidden on very small screens) */}
           <div className="hidden items-center gap-2 px-5 py-3 text-[10px] font-medium uppercase tracking-wider text-slate-400 sm:flex">
             <span className="w-12 shrink-0 text-center">排名</span>
             <span className="flex-1">冒险者</span>
@@ -236,11 +250,19 @@ export default function LeaderboardPage() {
             <span className="w-24 shrink-0 text-center">通关</span>
           </div>
 
+          {restRankings.length === 0 && topThree.length === 0 && (
+            <div className="flex flex-col items-center py-16 text-slate-400">
+              <Users size={40} className="mb-3 opacity-40" />
+              <p className="text-sm">还没有冒险者数据</p>
+              <p className="mt-1 text-xs opacity-60">完成第一关即可上榜</p>
+            </div>
+          )}
+
           <div className="max-h-[580px] space-y-2 overflow-y-auto px-2 pb-3 pt-2">
             {restRankings.map((entry, index) => {
-              const isCurrentUser = entry.userId === "current";
-              const entryMaxXp = nextLevelXp(entry.xp);
-              const xpPercent = xpToPercent(entry.xp, entryMaxXp);
+              const isCurrentUser = entry.userId === currentUserId;
+              const entryMaxXp = nextLevelXp(entry.xp ?? 0);
+              const xpPercent = xpToPercent(entry.xp ?? 0, entryMaxXp);
 
               return (
                 <motion.div
@@ -254,7 +276,6 @@ export default function LeaderboardPage() {
                       : ""
                   }`}
                 >
-                  {/* Rank */}
                   <div className="flex w-10 shrink-0 items-center justify-center">
                     {entry.rank <= 3 ? (
                       <div
@@ -275,7 +296,6 @@ export default function LeaderboardPage() {
                     )}
                   </div>
 
-                  {/* Username + Title */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-semibold text-stone-100">
@@ -293,18 +313,16 @@ export default function LeaderboardPage() {
                     <p className="truncate text-[10px] text-slate-400">{entry.title}</p>
                   </div>
 
-                  {/* Level */}
                   <div className="hidden w-16 shrink-0 text-center sm:block">
                     <span className="pixel-chip px-2 py-1 text-[10px] text-cyan-200">
                       Lv.{entry.level}
                     </span>
                   </div>
 
-                  {/* XP */}
                   <div className="hidden w-32 shrink-0 sm:block">
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-xs font-medium text-amber-200">
-                        {entry.xp.toLocaleString()}
+                        {(entry.xp ?? 0).toLocaleString()}
                       </span>
                       <div className="w-16">
                         <div className="pixel-progress h-2">
@@ -314,20 +332,18 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
 
-                  {/* Completed levels */}
                   <div className="hidden w-24 shrink-0 text-center sm:block">
                     <span className="text-xs text-slate-300">
-                      {entry.completedLevels}
+                      {entry.completedLevels ?? 0}
                     </span>
                   </div>
 
-                  {/* Mobile: compact stats row */}
                   <div className="flex items-center gap-2 sm:hidden">
                     <span className="pixel-chip px-2 py-0.5 text-[9px] text-cyan-200">
                       Lv.{entry.level}
                     </span>
                     <span className="text-[10px] text-amber-200">
-                      {entry.xp.toLocaleString()} XP
+                      {(entry.xp ?? 0).toLocaleString()} XP
                     </span>
                   </div>
                 </motion.div>
@@ -337,18 +353,20 @@ export default function LeaderboardPage() {
         </section>
 
         {/* ── Your position floating badge ── */}
-        <motion.div
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6 }}
-          className="fixed bottom-6 right-6 z-40 hidden sm:block"
-        >
-          <div className="pixel-map-tile border-[#55d6c2]/40 px-4 py-3 shadow-[0_0_20px_rgba(85,214,194,0.1)]">
-            <p className="text-[10px] text-slate-400">我的排名</p>
-            <p className="font-display mt-1 text-lg text-[#55d6c2]">#7</p>
-            <p className="text-[10px] text-slate-400">3200 XP</p>
-          </div>
-        </motion.div>
+        {currentUserEntry && (
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="fixed bottom-6 right-6 z-40 hidden sm:block"
+          >
+            <div className="pixel-map-tile border-[#55d6c2]/40 px-4 py-3 shadow-[0_0_20px_rgba(85,214,194,0.1)]">
+              <p className="text-[10px] text-slate-400">我的排名</p>
+              <p className="font-display mt-1 text-lg text-[#55d6c2]">#{currentUserEntry.rank}</p>
+              <p className="text-[10px] text-slate-400">{(currentUserEntry.xp ?? 0).toLocaleString()} XP</p>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

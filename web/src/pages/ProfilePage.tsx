@@ -15,137 +15,17 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getProfileDetail } from "@/services/game.service";
+import { XP_PER_LEVEL } from "@/types/api";
 import type {
   Achievement,
   ActivityEntry,
   ProfileStats,
   UserProfile,
 } from "@/types/api";
-
-// ── Mock Data ──────────────────────────────────────
-
-const mockStats: ProfileStats = {
-  totalSubmissions: 84,
-  passedLevels: 31,
-  totalXpEarned: 3200,
-  currentStreak: 5,
-  longestStreak: 12,
-};
-
-function hoursAgo(hours: number): string {
-  const date = new Date();
-  date.setHours(date.getHours() - hours);
-  return date.toISOString();
-}
-
-const mockActivities: ActivityEntry[] = [
-  {
-    id: "act-1",
-    type: "level_completed",
-    description: "通过「HTML 基础结构」关卡",
-    timestamp: hoursAgo(1),
-    xpEarned: 120,
-  },
-  {
-    id: "act-2",
-    type: "achievement_unlocked",
-    description: "达成成就「代码新手」",
-    timestamp: hoursAgo(3),
-  },
-  {
-    id: "act-3",
-    type: "level_started",
-    description: "开始挑战「CSS 盒子模型」",
-    timestamp: hoursAgo(5),
-  },
-  {
-    id: "act-4",
-    type: "level_completed",
-    description: "通过「JavaScript 变量」关卡",
-    timestamp: hoursAgo(8),
-    xpEarned: 150,
-  },
-  {
-    id: "act-5",
-    type: "level_completed",
-    description: "通过「Flexbox 布局」关卡",
-    timestamp: hoursAgo(24),
-    xpEarned: 200,
-  },
-  {
-    id: "act-6",
-    type: "level_started",
-    description: "开始挑战「数组与方法」",
-    timestamp: hoursAgo(30),
-  },
-  {
-    id: "act-7",
-    type: "achievement_unlocked",
-    description: "达成成就「连续挑战者」",
-    timestamp: hoursAgo(48),
-  },
-];
-
-const mockAchievements: Achievement[] = [
-  {
-    id: "ach-1",
-    name: "代码新手",
-    description: "完成第一个关卡",
-    icon: "star",
-    unlockedAt: "2026-01-15T10:30:00Z",
-  },
-  {
-    id: "ach-2",
-    name: "连续挑战者",
-    description: "连续登录 7 天",
-    icon: "flame",
-    unlockedAt: "2026-02-20T08:00:00Z",
-  },
-  {
-    id: "ach-3",
-    name: "CSS 大师",
-    description: "通过所有 CSS 关卡",
-    icon: "sword",
-    unlockedAt: "2026-03-10T14:20:00Z",
-  },
-  {
-    id: "ach-4",
-    name: "百次提交",
-    description: "累计提交 100 次",
-    icon: "zap",
-    unlockedAt: undefined,
-  },
-  {
-    id: "ach-5",
-    name: "JS 征服者",
-    description: "通过所有 JavaScript 关卡",
-    icon: "trophy",
-    unlockedAt: undefined,
-  },
-  {
-    id: "ach-6",
-    name: "完美主义者",
-    description: "全部关卡获得满分",
-    icon: "gem",
-    unlockedAt: undefined,
-  },
-];
-
-const mockProfile: UserProfile = {
-  id: "user-1",
-  username: "冒险者小明",
-  level: 7,
-  xp: 3200,
-  xpToNextLevel: 5000,
-  title: "新手冒险家",
-  joinedAt: "2025-12-01T00:00:00Z",
-  stats: mockStats,
-  recentActivity: mockActivities,
-  achievements: mockAchievements,
-};
 
 // ── Helpers ────────────────────────────────────────
 
@@ -217,15 +97,60 @@ const statCards: {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const profile = mockProfile;
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const xpPercent = useMemo(
-    () =>
-      profile.xpToNextLevel > 0
-        ? Math.min(100, Math.round((profile.xp / profile.xpToNextLevel) * 100))
-        : 0,
-    [profile.xp, profile.xpToNextLevel],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    getProfileDetail()
+      .then((data) => {
+        if (!cancelled) {
+          setProfile(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err?.message ?? "加载档案失败");
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const xpPercent = useMemo(() => {
+    if (!profile || profile.level < 1) return 0;
+    // Progress within the current level
+    const xpIntoCurrentLevel = profile.xp - (profile.level - 1) * XP_PER_LEVEL;
+    return Math.min(100, Math.max(0, Math.round((xpIntoCurrentLevel / XP_PER_LEVEL) * 100)));
+  }, [profile?.xp, profile?.level]);
+
+  if (loading) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center text-stone-100">
+        <p className="text-sm text-slate-400">加载中...</p>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 text-stone-100">
+        <p className="text-sm text-red-400">{error ?? "角色档案不存在"}</p>
+        <button
+          type="button"
+          className="pixel-button-secondary px-5 py-2.5 text-xs"
+          onClick={() => navigate("/map")}
+        >
+          返回地图
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden text-stone-100">
@@ -334,36 +259,40 @@ export default function ProfilePage() {
             <h2 className="font-display mb-4 text-base leading-relaxed text-[#ffe58b]">
               最近活动
             </h2>
-            <div className="space-y-3">
-              {profile.recentActivity.map((activity, index) => {
-                const Icon = activityIconMap[activity.type];
-                const iconColor = activityColorMap[activity.type];
-                return (
-                  <div
-                    key={activity.id}
-                    className="pixel-map-tile flex items-start gap-3 px-4 py-3"
-                  >
+            {profile.recentActivity.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400">还没有活动记录，开始闯关吧</p>
+            ) : (
+              <div className="space-y-3">
+                {profile.recentActivity.map((activity) => {
+                  const Icon = activityIconMap[activity.type] ?? Trophy;
+                  const iconColor = activityColorMap[activity.type] ?? "text-slate-300";
+                  return (
                     <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-slate-600/60 bg-[#15283f] ${iconColor}`}
+                      key={activity.id}
+                      className="pixel-map-tile flex items-start gap-3 px-4 py-3"
                     >
-                      <Icon size={16} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-stone-100">{activity.description}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                        <Clock size={11} />
-                        <span>{timeAgo(activity.timestamp)}</span>
-                        {activity.xpEarned ? (
-                          <span className="pixel-chip px-2 py-0.5 text-[10px] text-amber-200">
-                            +{activity.xpEarned} XP
-                          </span>
-                        ) : null}
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-slate-600/60 bg-[#15283f] ${iconColor}`}
+                      >
+                        <Icon size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-stone-100">{activity.description}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                          <Clock size={11} />
+                          <span>{timeAgo(activity.timestamp)}</span>
+                          {activity.xpEarned ? (
+                            <span className="pixel-chip px-2 py-0.5 text-[10px] text-amber-200">
+                              +{activity.xpEarned} XP
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Achievements */}
@@ -374,14 +303,12 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3">
               {profile.achievements.map((ach) => {
                 const Icon = getAchievementIcon(ach.icon);
-                const unlocked = !!ach.unlockedAt;
+                const unlocked = ach.unlocked;
                 return (
                   <div
                     key={ach.id}
                     className={`pixel-map-tile flex flex-col items-center gap-2 px-3 py-4 text-center transition ${
-                      unlocked
-                        ? ""
-                        : "opacity-55 saturate-0"
+                      unlocked ? "" : "opacity-55 saturate-0"
                     }`}
                   >
                     <div

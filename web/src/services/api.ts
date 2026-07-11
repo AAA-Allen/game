@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:3001/api";
+// In production the Vercel rewrites proxy /api/* → backend.
+// In development Vite's dev proxy forwards to localhost:3001.
+const API_BASE_URL = "/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

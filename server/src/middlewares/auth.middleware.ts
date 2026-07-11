@@ -36,26 +36,38 @@ export async function requireAuth(
 
   const token = authHeader.replace("Bearer ", "");
 
+  let payload: TokenPayload;
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as TokenPayload;
-    const [rows] = await pool.execute<AuthUserRow[]>(
-      `
-        SELECT id
-        FROM users
-        WHERE id = ?
-        LIMIT 1
-      `,
-      [payload.userId],
-    );
-    const user = rows[0];
-
-    if (!user) {
-      return next(new AppError("User not found", 401));
+    payload = jwt.verify(token, env.jwtSecret, {
+      algorithms: ["HS256"],
+    }) as TokenPayload;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return next(new AppError("Token expired", 401));
     }
-
-    req.user = payload;
-    return next();
-  } catch {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new AppError("Invalid token", 401));
+    }
     return next(new AppError("Invalid token", 401));
   }
+
+  // DB query is outside the JWT try-catch so database errors
+  // propagate as 500 instead of being masked as "Invalid token".
+  const [rows] = await pool.execute<AuthUserRow[]>(
+    `
+      SELECT id
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [payload.userId],
+  );
+  const user = rows[0];
+
+  if (!user) {
+    return next(new AppError("User not found", 401));
+  }
+
+  req.user = payload;
+  return next();
 }

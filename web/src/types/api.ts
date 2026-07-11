@@ -1,3 +1,6 @@
+/** XP required to gain one level. Keep in sync with server/src/data/course-content.ts. */
+export const XP_PER_LEVEL = 50;
+
 export type ApiResponse<T> = {
   code: number;
   message: string;
@@ -103,7 +106,8 @@ export type Achievement = {
   name: string;
   description: string;
   icon: string;
-  unlockedAt?: string;
+  unlocked: boolean;
+  unlockedAt?: string; // ISO timestamp — populated once we track unlock dates
 };
 
 export type UserProfile = {
@@ -125,8 +129,6 @@ export type SkillNode = {
   name: string;
   description: string;
   category: string;
-  x: number;
-  y: number;
   requiredLevel: number;
   requiredNodeIds: string[];
   isUnlocked: boolean;
@@ -140,6 +142,11 @@ export type SkillCategory = {
   name: string;
   color: string;
   nodes: SkillNode[];
+};
+
+export type SkillTreeData = {
+  nodes: SkillNode[];
+  userLevel: number;
 };
 
 // ── Leaderboard ───────────────────────────────────

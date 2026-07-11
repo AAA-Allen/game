@@ -3,6 +3,7 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
 
 import { pool } from "../../config/db";
+import { getNextUncompletedLevelId, getUnlockableZoneIdsByLevel, XP_PER_LEVEL } from "../../data/course-content";
 import { AppError } from "../../utils/app-error";
 import { getLevelById } from "../levels/levels.service";
 
@@ -14,7 +15,7 @@ const submissionSchema = z.object({
 });
 
 function calculateLevel(xp: number) {
-  return Math.floor(xp / 50) + 1;
+  return Math.floor(xp / XP_PER_LEVEL) + 1;
 }
 
 type UserRow = RowDataPacket & {
@@ -32,10 +33,6 @@ type CompletedLevelRow = RowDataPacket & {
   level_id: string;
 };
 
-type NextLevelRow = RowDataPacket & {
-  id: string;
-};
-
 async function getCompletedLevelIds(
   connection: PoolConnection,
   userId: string,
@@ -51,28 +48,6 @@ async function getCompletedLevelIds(
   );
 
   return rows.map((item) => item.level_id);
-}
-
-async function getNextCurrentLevelId(
-  connection: PoolConnection,
-  userId: string,
-) {
-  const [rows] = await connection.execute<NextLevelRow[]>(
-    `
-      SELECT l.id
-      FROM levels l
-      LEFT JOIN user_completed_levels ucl
-        ON ucl.level_id = l.id
-       AND ucl.user_id = ?
-      WHERE l.status = 'active'
-        AND ucl.id IS NULL
-      ORDER BY l.sort_order ASC, l.created_at ASC
-      LIMIT 1
-    `,
-    [userId],
-  );
-
-  return rows[0]?.id ?? null;
 }
 
 export async function createSubmission(userId: string, input: unknown) {
@@ -124,6 +99,11 @@ export async function createSubmission(userId: string, input: unknown) {
 
     const completedLevelIds = await getCompletedLevelIds(connection, userId);
     const alreadyCompleted = completedLevelIds.includes(level.id);
+
+    if (!alreadyCompleted && progress.current_level_id !== level.id) {
+      throw new AppError("Level is locked", 403);
+    }
+
     const earnedXp = passed && !alreadyCompleted ? level.rewardXp : 0;
 
     let nextXp = user.xp;
@@ -165,15 +145,19 @@ export async function createSubmission(userId: string, input: unknown) {
         [randomUUID(), userId, level.id, earnedXp, nextXp],
       );
 
-      await connection.execute(
-        `
-          INSERT IGNORE INTO user_unlocked_zones (id, user_id, zone_id)
-          SELECT UUID(), ?, z.id
-          FROM zones z
-          WHERE z.status = 'active' AND z.required_level <= ?
-        `,
-        [userId, nextLevel],
-      );
+      const unlockableZoneIds = getUnlockableZoneIdsByLevel(nextLevel);
+      if (unlockableZoneIds.length > 0) {
+        const placeholders = unlockableZoneIds.map(() => "(?, ?, ?)").join(", ");
+        const values = unlockableZoneIds.flatMap((zoneId) => [
+          randomUUID(),
+          userId,
+          zoneId,
+        ]);
+        await connection.execute(
+          `INSERT IGNORE INTO user_unlocked_zones (id, user_id, zone_id) VALUES ${placeholders}`,
+          values,
+        );
+      }
     }
 
     const submissionId = randomUUID();
@@ -205,9 +189,11 @@ export async function createSubmission(userId: string, input: unknown) {
       ],
     );
 
+    const refreshedCompletedLevelIds = await getCompletedLevelIds(connection, userId);
     const nextCurrentLevelId =
       passed && !alreadyCompleted
-        ? await getNextCurrentLevelId(connection, userId)
+        ? getNextUncompletedLevelId(refreshedCompletedLevelIds) ??
+          progress.current_level_id
         : progress.current_level_id;
 
     await connection.execute(
@@ -218,8 +204,6 @@ export async function createSubmission(userId: string, input: unknown) {
       `,
       [nextCurrentLevelId, progress.id],
     );
-
-    const refreshedCompletedLevelIds = await getCompletedLevelIds(connection, userId);
 
     await connection.commit();
 

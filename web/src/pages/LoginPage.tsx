@@ -14,6 +14,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { login, register } from "@/services/auth.service";
 import { useAuthStore } from "@/store/auth.store";
 
+const DEV_FIXED_ACCOUNT = import.meta.env.DEV
+  ? {
+      username: "devplayer",
+      password: "123456",
+    }
+  : null;
+
 const featureCards = [
   {
     icon: Compass,
@@ -43,8 +50,8 @@ export default function LoginPage() {
   const location = useLocation();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(DEV_FIXED_ACCOUNT?.username ?? "");
+  const [password, setPassword] = useState(DEV_FIXED_ACCOUNT?.password ?? "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +59,51 @@ export default function LoginPage() {
     () => (mode === "login" ? "回到冒险世界" : "创建你的冒险者"),
     [mode],
   );
+
+  async function completeLogin(nextUsername: string, nextPassword: string) {
+    const result = await login({ username: nextUsername, password: nextPassword });
+    setAuth(result.token, result.user);
+    navigate(location.state?.from ?? "/map", { replace: true });
+  }
+
+  async function handleFixedAccountLogin() {
+    if (!DEV_FIXED_ACCOUNT) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setMode("login");
+    setUsername(DEV_FIXED_ACCOUNT.username);
+    setPassword(DEV_FIXED_ACCOUNT.password);
+
+    try {
+      try {
+        await completeLogin(DEV_FIXED_ACCOUNT.username, DEV_FIXED_ACCOUNT.password);
+        return;
+      } catch {
+        try {
+          await register(DEV_FIXED_ACCOUNT);
+        } catch (registerError) {
+          const message = registerError instanceof Error ? registerError.message : "";
+
+          if (!/already exists/i.test(message)) {
+            throw registerError;
+          }
+        }
+      }
+
+      await completeLogin(DEV_FIXED_ACCOUNT.username, DEV_FIXED_ACCOUNT.password);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "测试账号进入失败，请稍后重试",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,9 +115,7 @@ export default function LoginPage() {
         await register({ username, password });
       }
 
-      const result = await login({ username, password });
-      setAuth(result.token, result.user);
-      navigate(location.state?.from ?? "/map", { replace: true });
+      await completeLogin(username, password);
     } catch (requestError) {
       const fallback = mode === "login" ? "登录失败，请检查账号信息" : "注册失败，请稍后重试";
       setError(
@@ -214,6 +264,26 @@ export default function LoginPage() {
                 注册
               </button>
             </div>
+
+            {DEV_FIXED_ACCOUNT ? (
+              <div className="mb-5 space-y-3">
+                <div className="pixel-map-tile px-4 py-3 text-sm text-slate-300">
+                  <p className="font-display text-[11px] text-cyan-200">测试模式固定账号</p>
+                  <p className="mt-2">
+                    用户名：`{DEV_FIXED_ACCOUNT.username}` / 密码：`{DEV_FIXED_ACCOUNT.password}`
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  className="pixel-button-secondary flex w-full items-center justify-center gap-3 px-5 py-4 text-[11px] font-display disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={handleFixedAccountLogin}
+                >
+                  {loading ? "正在连接测试账号" : "测试模式一键进入"}
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            ) : null}
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <label className="block space-y-2">

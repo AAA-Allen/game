@@ -1,14 +1,16 @@
 import { ArrowLeft, ArrowRight, Coins, Sparkles, Star, Trophy } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import type { SubmissionResult } from "@/types/api";
+import { getLevels } from "@/services/game.service";
+import type { Level, SubmissionResult } from "@/types/api";
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const result = location.state?.result as SubmissionResult | undefined;
   const levelTitle = location.state?.levelTitle as string | undefined;
+  const [nextLevel, setNextLevel] = useState<Level | null>(null);
 
   const stars = useMemo(() => {
     if (!result) return 0;
@@ -16,6 +18,45 @@ export default function ResultPage() {
     if (result.submission.score >= 60) return 2;
     if (result.submission.score >= 30) return 1;
     return 0;
+  }, [result]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNextLevel() {
+      if (!result) {
+        setNextLevel(null);
+        return;
+      }
+
+      try {
+        const allLevels = await getLevels();
+        const sortedLevels = [...allLevels].sort((left, right) => left.sortOrder - right.sortOrder);
+        const currentIndex = sortedLevels.findIndex(
+          (level) => level.id === result.submission.levelId,
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setNextLevel(
+          currentIndex >= 0 && currentIndex < sortedLevels.length - 1
+            ? sortedLevels[currentIndex + 1]
+            : null,
+        );
+      } catch {
+        if (isMounted) {
+          setNextLevel(null);
+        }
+      }
+    }
+
+    void loadNextLevel();
+
+    return () => {
+      isMounted = false;
+    };
   }, [result]);
 
   if (!result) {
@@ -42,7 +83,7 @@ export default function ResultPage() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.12),transparent_32%),linear-gradient(180deg,#0a1220,#08101a_45%,#0a1220_100%)] text-stone-100">
-      <div className="absolute inset-0 pixel-grid-bg opacity-8" />
+      <div className="absolute inset-0 pixel-grid-bg opacity-10" />
       <div className="absolute inset-0 pixel-stars opacity-50" />
 
       <div className="relative mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-6 px-5 py-8">
@@ -124,6 +165,17 @@ export default function ResultPage() {
               再试一次
               <ArrowRight size={16} />
             </button>
+            {stars === 3 && nextLevel ? (
+              <button
+                type="button"
+                className="pixel-button flex items-center gap-2 px-5 py-3 text-[11px] font-display"
+                onClick={() => navigate(`/levels/${nextLevel.id}`)}
+                title={`前往 ${nextLevel.title}`}
+              >
+                下一关
+                <ArrowRight size={16} />
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
